@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRChat Matrix Background Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .content {
+            position: relative;
+            z-index: 20;
+            text-align: center;
+            color: white;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            color: #00ffff;
+        }
+        p {
+            font-size: 1.2rem;
+            color: #ff00ff;
+            text-shadow: 0 0 5px rgba(255, 0, 255, 0.6);
+        }
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 30;
+            background: rgba(0, 255, 255, 0.2);
+            border: 2px solid rgba(0, 255, 255, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .theme-toggle:hover {
+            background: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="theme-toggle" onclick="toggleTheme()">Switch to Default Theme</button>
+        <div class="content">
+            <h1>VRCHIEVE</h1>
+            <p>VRChat Matrix Background Mode</p>
+            <p>Design minimalista e elegante!</p>
+            <p><strong>Novo:</strong> Tipografia refinada "Archive Nyo"</p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Simulação do componente MatrixBackground em vanilla JS
+        class MatrixBackground {
+            constructor(canvasId, theme = 'vrchat') {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.theme = theme;
+                this.animationFrameId = null;
+                this.floatingWords = [];
+                this.wordInterval = null;
+                
+                this.themes = {
+                    default: {
+                        background: ['#0f0f23', '#1e1b4b', '#312e81', '#1e1b4b'],
+                        shapes: {
+                            primary: 'rgba(99, 102, 241, 0.15)',
+                            secondary: 'rgba(139, 92, 246, 0.1)',
+                            tertiary: 'rgba(59, 130, 246, 0.05)',
+                            stroke: 'rgba(99, 102, 241, 0.4)'
+                        },
+                        particles: [
+                            'rgba(99, 102, 241, {alpha})',
+                            'rgba(139, 92, 246, {alpha})',
+                            'rgba(59, 130, 246, {alpha})',
+                            'rgba(34, 197, 94, {alpha})'
+                        ],
+                        lines: 'rgba(139, 92, 246, 0.2)'
+                    },
+                    vrchat: {
+                        background: ['#0a0a0f', '#1a0a2e', '#16213e', '#0f3460'],
+                        shapes: {
+                            primary: 'rgba(0, 255, 255, 0.25)',
+                            secondary: 'rgba(255, 0, 255, 0.2)',
+                            tertiary: 'rgba(50, 255, 50, 0.15)',
+                            stroke: 'rgba(0, 255, 255, 0.8)'
+                        },
+                        particles: [
+                            'rgba(0, 255, 255, {alpha})',
+                            'rgba(255, 0, 255, {alpha})',
+                            'rgba(50, 255, 50, {alpha})',
+                            'rgba(255, 50, 255, {alpha})',
+                            'rgba(0, 255, 150, {alpha})',
+                            'rgba(255, 255, 0, {alpha})'
+                        ],
+                        lines: 'rgba(0, 255, 255, 0.4)'
+                    }
+                };
+
+                this.init();
+            }
+
+            init() {
+                this.resize();
+                this.createParticles();
+                this.createShapes();
+                this.createFloatingWords();
+                this.animate();
+                
+                // Recriar palavras periodicamente - menos frequente para design minimalista
+                this.wordInterval = setInterval(() => {
+                    this.createFloatingWords();
+                }, 12000);
+                
+                window.addEventListener('resize', () => {
+                    this.resize();
+                    this.createFloatingWords();
+                });
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            createParticles() {
+                const characters = this.theme === 'vrchat' 
+                    ? '01VRChatアイウエオﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘ※◆◇○●△▲▼▽'
+                    : '01アイウエオArchiveNyoﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘ';
+                
+                this.particles = [];
+                const columns = Math.floor(this.canvas.width / 20);
+                for (let i = 0; i < columns; i++) {
+                    this.particles.push({
+                        x: i * 20 + Math.random() * 10,
+                        y: Math.random() * this.canvas.height,
+                        speed: Math.random() * 2 + 1,
+                        char: characters[Math.floor(Math.random() * characters.length)],
+                        opacity: Math.random() * 0.8 + 0.2,
+                        life: Math.random() * 100 + 50
+                    });
+                }
+                this.characters = characters;
+            }
+
+            createFloatingWord(text, x, y) {
+                const letters = text.split('');
+                const wordParticles = [];
+                
+                // Espaçamento mais elegante entre letras
+                const letterSpacing = this.theme === 'vrchat' ? 28 : 24;
+                
+                letters.forEach((letter, index) => {
+                    if (letter !== ' ') {
+                        wordParticles.push({
+                            char: letter,
+                            x: x + (index * letterSpacing),
+                            y: y,
+                            targetX: x + (index * letterSpacing),
+                            targetY: y,
+                            opacity: 0,
+                            life: 400 + (index * 25),
+                            maxLife: 400 + (index * 25),
+                            isWord: true,
+                            letterIndex: index,
+                            speed: 0.3
+                        });
+                    }
+                });
+                return wordParticles;
+            }
+
+            createFloatingWords() {
+                this.floatingWords.length = 0;
+                
+                // "Archive" - posição superior centralizada e elegante
+                const archiveWord = this.createFloatingWord('Archive', this.canvas.width * 0.5 - 90, this.canvas.height * 0.3);
+                this.floatingWords.push(...archiveWord);
+                
+                // "Nyo" - posição inferior centralizada com espaçamento adequado
+                const nyoWord = this.createFloatingWord('Nyo', this.canvas.width * 0.5 - 30, this.canvas.height * 0.7);
+                this.floatingWords.push(...nyoWord);
+                
+                // Adicionar palavras com delay escalonado mais suave
+                this.floatingWords.forEach((particle, index) => {
+                    particle.life = particle.maxLife + (index * 15);
+                });
+            }
+
+            createShapes() {
+                this.shapes = [];
+                for (let i = 0; i < 15; i++) {
+                    this.shapes.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        size: Math.random() * 100 + 50,
+                        rotation: 0,
+                        rotationSpeed: (Math.random() - 0.5) * 0.02,
+                        opacity: Math.random() * 0.1 + 0.05,
+                        type: Math.floor(Math.random() * 3)
+                    });
+                }
+            }
+
+            animate() {
+                const currentTheme = this.themes[this.theme];
+                
+                // Background gradient
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+                currentTheme.background.forEach((color, index) => {
+                    gradient.addColorStop(index / (currentTheme.background.length - 1), color);
+                });
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw shapes
+                this.shapes.forEach(shape => {
+                    shape.rotation += shape.rotationSpeed;
+                    this.drawShape(shape, currentTheme);
+                });
+
+                // Draw particles
+                this.ctx.font = this.theme === 'vrchat' ? '16px "Courier New", monospace' : '14px "Courier New", monospace';
+                this.particles.forEach(particle => {
+                    const alpha = Math.sin(particle.life * 0.1) * particle.opacity;
+                    const colorIndex = Math.floor(particle.life / 25) % currentTheme.particles.length;
+                    const color = currentTheme.particles[colorIndex].replace('{alpha}', alpha);
+                    
+                    this.ctx.fillStyle = color;
+                    
+                    if (this.theme === 'vrchat') {
+                        this.ctx.shadowColor = color;
+                        this.ctx.shadowBlur = 15;
+                    }
+                    
+                    this.ctx.fillText(particle.char, particle.x, particle.y);
+                    this.ctx.shadowBlur = 0;
+                    
+                    particle.y += particle.speed;
+                    particle.life -= 1;
+                    
+                    if (particle.y > this.canvas.height + 20 || particle.life <= 0) {
+                        particle.y = -20;
+                        particle.x = Math.random() * this.canvas.width;
+                        particle.char = this.characters[Math.floor(Math.random() * this.characters.length)];
+                        particle.life = Math.random() * 100 + 50;
+                    }
+                });
+
+                // Draw floating words with refined, minimal design
+                this.ctx.font = this.theme === 'vrchat' ? '700 36px "Inter", "Segoe UI", sans-serif' : '600 32px "Inter", "Segoe UI", sans-serif';
+                this.floatingWords.forEach(particle => {
+                    if (particle.life > 0) {
+                        // Calcular alpha baseado no ciclo de vida para transição suave
+                        const lifeRatio = particle.life / particle.maxLife;
+                        let alpha = 0;
+                        
+                        if (lifeRatio > 0.85) {
+                            // Fade in suave
+                            alpha = (1 - lifeRatio) * 6.67;
+                        } else if (lifeRatio > 0.15) {
+                            // Estável com opacidade reduzida para minimalismo
+                            alpha = 0.75;
+                        } else {
+                            // Fade out suave
+                            alpha = lifeRatio * 5;
+                        }
+                        
+                        // Design minimalista: cor única e elegante
+                        const baseColor = this.theme === 'vrchat' 
+                            ? `rgba(255, 255, 255, ${alpha})` 
+                            : `rgba(248, 250, 252, ${alpha})`;
+                        
+                        this.ctx.fillStyle = baseColor;
+                        
+                        // Efeito sutil de brilho apenas para legibilidade
+                        this.ctx.shadowColor = baseColor;
+                        this.ctx.shadowBlur = this.theme === 'vrchat' ? 8 : 6;
+                        
+                        // Movimento mais suave e elegante
+                        const subtleWave = Math.sin((Date.now() * 0.002) + (particle.letterIndex * 0.3)) * 1.5;
+                        const drawY = particle.y + subtleWave;
+                        
+                        // Contorno sutil para melhor legibilidade sem poluir o design
+                        this.ctx.strokeStyle = this.theme === 'vrchat' 
+                            ? `rgba(0, 0, 0, ${alpha * 0.4})` 
+                            : `rgba(15, 23, 42, ${alpha * 0.3})`;
+                        this.ctx.lineWidth = 1;
+                        this.ctx.strokeText(particle.char, particle.x, drawY);
+                        
+                        // Desenhar o texto principal
+                        this.ctx.fillText(particle.char, particle.x, drawY);
+                        
+                        // Reset efeitos
+                        this.ctx.shadowBlur = 0;
+                        
+                        particle.life -= 1;
+                    }
+                });
+
+                // Limpar palavras que terminaram
+                for (let i = this.floatingWords.length - 1; i >= 0; i--) {
+                    if (this.floatingWords[i].life <= 0) {
+                        this.floatingWords.splice(i, 1);
+                    }
+                }
+
+                // Draw lines
+                this.ctx.strokeStyle = currentTheme.lines;
+                this.ctx.lineWidth = this.theme === 'vrchat' ? 2 : 1;
+                
+                if (this.theme === 'vrchat') {
+                    this.ctx.shadowColor = currentTheme.lines;
+                    this.ctx.shadowBlur = 10;
+                }
+                
+                for (let i = 0; i < 5; i++) {
+                    const time = Date.now() * 0.001 + i;
+                    const x1 = Math.sin(time * 0.3) * this.canvas.width * 0.3 + this.canvas.width * 0.5;
+                    const y1 = Math.cos(time * 0.2) * this.canvas.height * 0.2 + this.canvas.height * 0.3;
+                    const x2 = Math.sin(time * 0.4 + 1) * this.canvas.width * 0.2 + this.canvas.width * 0.6;
+                    const y2 = Math.cos(time * 0.3 + 1) * this.canvas.height * 0.3 + this.canvas.height * 0.7;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y1);
+                    this.ctx.lineTo(x2, y2);
+                    this.ctx.stroke();
+                }
+                
+                this.ctx.shadowBlur = 0;
+                this.animationFrameId = requestAnimationFrame(() => this.animate());
+            }
+
+            drawShape(shape, currentTheme) {
+                this.ctx.save();
+                this.ctx.globalAlpha = shape.opacity;
+                this.ctx.translate(shape.x, shape.y);
+                this.ctx.rotate(shape.rotation);
+                
+                const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size);
+                gradient.addColorStop(0, currentTheme.shapes.primary);
+                gradient.addColorStop(0.5, currentTheme.shapes.secondary);
+                gradient.addColorStop(1, currentTheme.shapes.tertiary);
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.strokeStyle = currentTheme.shapes.stroke;
+                this.ctx.lineWidth = this.theme === 'vrchat' ? 2 : 1;
+
+                if (shape.type === 0) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, -shape.size/2);
+                    this.ctx.lineTo(-shape.size/2, shape.size/2);
+                    this.ctx.lineTo(shape.size/2, shape.size/2);
+                    this.ctx.closePath();
+                } else if (shape.type === 1) {
+                    this.ctx.beginPath();
+                    this.ctx.rect(-shape.size/2, -shape.size/2, shape.size, shape.size);
+                } else {
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, 0, shape.size/2, 0, Math.PI * 2);
+                }
+                
+                this.ctx.fill();
+                this.ctx.stroke();
+                this.ctx.restore();
+            }
+
+            setTheme(newTheme) {
+                this.theme = newTheme;
+                this.createParticles(); // Recreate particles with new characters
+                this.createFloatingWords(); // Recreate floating words
+            }
+
+            destroy() {
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                }
+                if (this.wordInterval) {
+                    clearInterval(this.wordInterval);
+                }
+            }
+        }
+
+        // Initialize
+        const canvas = document.createElement('canvas');
+        canvas.id = 'matrix-canvas';
+        canvas.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;';
+        document.body.appendChild(canvas);
+
+        let matrixBg = new MatrixBackground('matrix-canvas', 'vrchat');
+        let currentTheme = 'vrchat';
+
+        window.toggleTheme = function() {
+            currentTheme = currentTheme === 'vrchat' ? 'default' : 'vrchat';
+            matrixBg.setTheme(currentTheme);
+            
+            const button = document.querySelector('.theme-toggle');
+            button.textContent = currentTheme === 'vrchat' 
+                ? 'Switch to Default Theme' 
+                : 'Switch to VRChat Theme';
+        };
+    </script>
+</body>
+</html>

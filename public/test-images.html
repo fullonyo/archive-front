@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Images</title>
+</head>
+<body>
+    <h1>Testing Google Drive Image URLs</h1>
+    
+    <h2>Image 1:</h2>
+    <img src="https://drive.google.com/uc?export=view&id=1DEltPfCOZziLtGBovzeQPTRjbAyiFEzP" alt="Image 1" style="max-width: 400px; border: 1px solid black;">
+    
+    <h2>Image 2:</h2>
+    <img src="https://drive.google.com/uc?export=view&id=1ONyeGlVEuqgcSttqRadSzCAxkhh5mZMw" alt="Image 2" style="max-width: 400px; border: 1px solid black;">
+    
+    <script>
+        console.log('Testing image load events...');
+        
+        const images = document.querySelectorAll('img');
+        images.forEach((img, index) => {
+            img.onload = () => {
+                console.log(`Image ${index + 1} loaded successfully`);
+            };
+            img.onerror = () => {
+                console.log(`Image ${index + 1} failed to load`);
+            };
+        });
+    </script>
+</body>
+</html>
