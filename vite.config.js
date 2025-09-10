@@ -23,6 +23,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
           ui: ['@headlessui/react', '@heroicons/react'],
+          motion: ['framer-motion'],
           utils: ['axios', '@tanstack/react-query']
         }
       }
@@ -30,5 +31,8 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['framer-motion']
   }
 }) 
