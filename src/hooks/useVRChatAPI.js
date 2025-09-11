@@ -415,6 +415,157 @@ export const useVRChatAPI = () => {
     checkStatus()
   }, [checkStatus])
 
+  // Atualiza autenticação para conexão existente (novo cookie)
+  const updateAuth = useCallback(async (username, password, twoFactorAuth = null) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      console.log('🔄 Atualizando autenticação VRChat...')
+
+      const response = await api.post('/vrchat/update-auth', {
+        username,
+        password,
+        twoFactorAuth
+      })
+
+      if (response.data.success) {
+        console.log('✅ Autenticação atualizada com sucesso!')
+        await checkStatus() // Refresh status após atualização
+        return { success: true, message: response.data.message }
+      } else {
+        throw new Error(response.data.message)
+      }
+    } catch (err) {
+      console.error('❌ Erro ao atualizar autenticação:', err)
+      const errorMessage = err.response?.data?.message || 'Erro ao atualizar autenticação'
+      setError(errorMessage)
+      return { 
+        success: false, 
+        error: errorMessage,
+        requires2FA: err.response?.data?.requires2FA || false
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [checkStatus])
+
+  // Busca lista de amigos do VRChat
+  const getFriends = useCallback(async () => {
+    try {
+      console.log('👥 Buscando lista de amigos...')
+      const response = await api.get('/vrchat/friends')
+      
+      console.log('👥 Resposta amigos:', response.data)
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data }
+      } else {
+        throw new Error(response.data.message)
+      }
+    } catch (err) {
+      console.error('❌ Erro ao buscar amigos:', err.response?.data || err.message)
+      return { success: false, error: err.response?.data?.message || 'Erro ao buscar lista de amigos' }
+    }
+  }, [])
+
+  // Busca mundos visitados recentemente
+  const getRecentWorlds = useCallback(async () => {
+    try {
+      console.log('🌍 Buscando mundos recentes...')
+      const response = await api.get('/vrchat/recent-worlds')
+      
+      console.log('🌍 Resposta mundos:', response.data)
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data }
+      } else {
+        throw new Error(response.data.message)
+      }
+    } catch (err) {
+      console.error('❌ Erro ao buscar mundos recentes:', err.response?.data || err.message)
+      return { success: false, error: err.response?.data?.message || 'Erro ao buscar mundos recentes' }
+    }
+  }, [])
+
+  // Busca estatísticas da conta VRChat
+  const getStats = useCallback(async () => {
+    try {
+      console.log('📊 Buscando estatísticas...')
+      const response = await api.get('/vrchat/stats')
+      
+      console.log('📊 Resposta stats:', response.data)
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data }
+      } else {
+        throw new Error(response.data.message)
+      }
+    } catch (err) {
+      console.error('❌ Erro ao buscar estatísticas:', err.response?.data || err.message)
+      return { success: false, error: err.response?.data?.message || 'Erro ao buscar estatísticas' }
+    }
+  }, [])
+
+  // Busca instâncias de mundo
+  const getWorldInstances = useCallback(async (worldId = null) => {
+    try {
+      setLoading(true)
+      const url = worldId ? `/vrchat/instances?worldId=${worldId}` : '/vrchat/instances'
+      const response = await api.get(url)
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data }
+      } else {
+        throw new Error(response.data.message)
+      }
+    } catch (err) {
+      console.error('Erro ao buscar instâncias:', err)
+      setError(err.response?.data?.message || 'Erro ao buscar instâncias')
+      return { success: false, error: err.response?.data?.message || 'Erro ao buscar instâncias' }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Função para buscar dados completos do dashboard
+  const getDashboardData = useCallback(async () => {
+    try {
+      setLoading(true)
+      console.log('🔄 Iniciando carregamento do dashboard...')
+      
+      // Executa todas as chamadas em paralelo
+      const results = await Promise.allSettled([
+        getProfile(),
+        getStats(), 
+        getRecentWorlds(),
+        getFriends()
+      ])
+
+      console.log('📊 Resultados das chamadas:', results.map((r, i) => ({
+        index: i,
+        status: r.status,
+        success: r.status === 'fulfilled' ? r.value?.success : false,
+        error: r.status === 'rejected' ? r.reason : (r.value?.error || null)
+      })))
+
+      const dashboardData = {
+        profile: results[0].status === 'fulfilled' && results[0].value?.success ? results[0].value.data : null,
+        stats: results[1].status === 'fulfilled' && results[1].value?.success ? results[1].value.data : null,
+        recentWorlds: results[2].status === 'fulfilled' && results[2].value?.success ? results[2].value.data : null,
+        friends: results[3].status === 'fulfilled' && results[3].value?.success ? results[3].value.data : null
+      }
+
+      console.log('✅ Dashboard data compilado:', dashboardData)
+      return { success: true, data: dashboardData }
+    } catch (err) {
+      console.error('Erro ao buscar dados do dashboard:', err)
+      return { success: false, error: 'Erro ao carregar dados do dashboard' }
+    } finally {
+      setLoading(false)
+    }
+  }, [getProfile, getStats, getRecentWorlds, getFriends])
+
   return {
     // Estado
     status,
@@ -435,6 +586,7 @@ export const useVRChatAPI = () => {
     // Ações de autenticação (novo fluxo)
     initiateConnection,
     complete2FAConnection,
+    updateAuth,
     
     // Ações (compatibilidade + novas)
     connect,
@@ -446,6 +598,13 @@ export const useVRChatAPI = () => {
     testConnection,
     checkStatus,
     clearError,
-    refresh
+    refresh,
+    
+    // Novas funções de dados
+    getFriends,
+    getRecentWorlds,
+    getStats,
+    getWorldInstances,
+    getDashboardData
   }
 }

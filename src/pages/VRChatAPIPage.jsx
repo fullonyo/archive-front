@@ -35,7 +35,14 @@ const VRChatAPIPage = () => {
     disconnect,
     testConnection,
     clearError,
-    refresh
+    refresh,
+    
+    // Novas funções
+    getFriends,
+    getRecentWorlds,
+    getStats,
+    getWorldInstances,
+    getDashboardData
   } = useVRChatAPI()
 
   const [showLoginForm, setShowLoginForm] = useState(false)
@@ -44,6 +51,11 @@ const VRChatAPIPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
+  
+  // Estados para os novos dados
+  const [dashboardData, setDashboardData] = useState(null)
+  const [loadingDashboard, setLoadingDashboard] = useState(false)
+  const [activeSection, setActiveSection] = useState('overview') // overview, friends, worlds, stats
 
   const handleConnect = async (e) => {
     e.preventDefault()
@@ -155,6 +167,34 @@ const VRChatAPIPage = () => {
       setIsTesting(false)
     }
   }
+
+  // Função para carregar dados do dashboard
+  const loadDashboardData = async () => {
+    console.log('🚀 Iniciando carregamento do dashboard...')
+    setLoadingDashboard(true)
+    try {
+      const result = await getDashboardData()
+      console.log('📊 Resultado dashboard:', result)
+      
+      if (result.success) {
+        setDashboardData(result.data)
+        console.log('✅ Dashboard data atualizado:', result.data)
+      } else {
+        console.error('❌ Falha ao carregar dashboard:', result.error)
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar dashboard:', error)
+    } finally {
+      setLoadingDashboard(false)
+    }
+  }
+
+  // Carrega dados quando conecta
+  React.useEffect(() => {
+    if (isConnected && !dashboardData) {
+      loadDashboardData()
+    }
+  }, [isConnected])
 
   const getStatusInfo = () => {
     if (isConnecting || loading || isSubmitting) {
@@ -533,32 +573,373 @@ const VRChatAPIPage = () => {
               </motion.div>
             )}
 
-            {/* Connected User Info */}
+            {/* Connected Dashboard */}
             {isConnected && connection && (
-              <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-4">
-                <div className="flex items-center space-x-4 mb-4">
-                  {connection.vrchatAvatarUrl && (
-                    <img
-                      src={connection.vrchatAvatarUrl}
-                      alt="VRChat Avatar"
-                      className="w-16 h-16 rounded-lg object-cover"
-                    />
-                  )}
-                  <div>
-                    <h4 className="text-green-400 font-semibold">{connection.vrchatDisplayName}</h4>
-                    <p className="text-green-300 text-sm">@{connection.vrchatUsername}</p>
-                    <p className="text-green-400 text-xs">
-                      Conectado em {new Date(connection.connectedAt).toLocaleDateString()}
-                    </p>
+              <div className="space-y-6">
+                {/* User Profile Header */}
+                <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-6">
+                  <div className="flex items-center space-x-4 mb-4">
+                    {connection.vrchatAvatarUrl && (
+                      <img
+                        src={connection.vrchatAvatarUrl}
+                        alt="VRChat Avatar"
+                        className="w-16 h-16 rounded-lg object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h4 className="text-green-400 font-semibold text-lg">{connection.vrchatDisplayName}</h4>
+                      <p className="text-green-300 text-sm">@{connection.vrchatUsername}</p>
+                      <p className="text-green-400 text-xs">
+                        Conectado em {new Date(connection.connectedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={loadDashboardData}
+                      disabled={loadingDashboard}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm disabled:opacity-50"
+                    >
+                      {loadingDashboard ? 'Atualizando...' : 'Atualizar'}
+                    </button>
                   </div>
                 </div>
-                
-                <button
-                  onClick={handleDisconnect}
-                  className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200"
-                >
-                  Desconectar
-                </button>
+
+                {/* Navigation Tabs */}
+                <div className="bg-gray-800 rounded-lg p-1">
+                  <div className="flex space-x-1">
+                    {[
+                      { id: 'overview', label: 'Visão Geral', icon: UserIcon },
+                      { id: 'friends', label: 'Amigos', icon: HeartIcon },
+                      { id: 'worlds', label: 'Mundos', icon: GlobeAltIcon },
+                      { id: 'stats', label: 'Estatísticas', icon: ShieldCheckIcon },
+                    ].map((tab) => {
+                      const Icon = tab.icon
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveSection(tab.id)}
+                          className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+                            activeSection === tab.id
+                              ? 'bg-orange-600 text-white'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span className="hidden sm:inline">{tab.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Dashboard Content */}
+                <div className="bg-gray-800 rounded-lg p-6">
+                  {loadingDashboard ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                      <p className="text-gray-400">Carregando dados...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Overview Section */}
+                      {activeSection === 'overview' && (
+                        <div className="space-y-6">
+                          <h3 className="text-white text-xl font-bold mb-4">Visão Geral</h3>
+                          
+                          {/* Debug Section - TEMPORÁRIO */}
+                          <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
+                            <h4 className="text-blue-400 font-semibold mb-2">Debug - Estado dos Dados</h4>
+                            <div className="text-xs space-y-1">
+                              <p className="text-blue-300">Dashboard Data: {dashboardData ? 'EXISTE' : 'NULL'}</p>
+                              <p className="text-blue-300">Stats: {dashboardData?.stats ? 'EXISTE' : 'NULL'}</p>
+                              <p className="text-blue-300">Recent Worlds: {dashboardData?.recentWorlds ? 'EXISTE' : 'NULL'}</p>
+                              <p className="text-blue-300">Friends: {dashboardData?.friends ? 'EXISTE' : 'NULL'}</p>
+                              <p className="text-blue-300">Loading: {loadingDashboard ? 'SIM' : 'NÃO'}</p>
+                              {dashboardData && (
+                                <details className="mt-2">
+                                  <summary className="text-blue-400 cursor-pointer">Ver dados completos</summary>
+                                  <pre className="text-blue-200 text-xs mt-1 overflow-auto max-h-32">
+                                    {JSON.stringify(dashboardData, null, 2)}
+                                  </pre>
+                                </details>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {dashboardData?.stats && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                                <p className="text-2xl font-bold text-orange-400">{dashboardData.stats.totalFriends}</p>
+                                <p className="text-gray-300 text-sm">Amigos</p>
+                              </div>
+                              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                                <p className="text-2xl font-bold text-blue-400">{dashboardData.stats.totalWorlds}</p>
+                                <p className="text-gray-300 text-sm">Mundos</p>
+                              </div>
+                              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                                <p className="text-2xl font-bold text-green-400">{dashboardData.stats.totalAvatars}</p>
+                                <p className="text-gray-300 text-sm">Avatares</p>
+                              </div>
+                              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                                <p className="text-2xl font-bold text-purple-400">{dashboardData.stats.hoursPlayed}h</p>
+                                <p className="text-gray-300 text-sm">Jogadas</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {dashboardData?.recentWorlds && (
+                            <div>
+                              <h4 className="text-white font-semibold mb-3">Mundos Recentes</h4>
+                              <div className="space-y-3">
+                                {dashboardData.recentWorlds.worlds?.slice(0, 3).map((world, index) => (
+                                  <div key={index} className="bg-gray-700 rounded-lg p-4 flex items-center space-x-4">
+                                    <img
+                                      src={world.imageUrl}
+                                      alt={world.name}
+                                      className="w-12 h-12 rounded-lg object-cover"
+                                    />
+                                    <div className="flex-1">
+                                      <h5 className="text-white font-medium">{world.name}</h5>
+                                      <p className="text-gray-400 text-sm">por {world.authorName}</p>
+                                      <p className="text-gray-500 text-xs">
+                                        Visitado {new Date(world.visitedAt).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Friends Section */}
+                      {activeSection === 'friends' && (
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-white text-xl font-bold">Lista de Amigos</h3>
+                            <div className="flex items-center space-x-4">
+                              {/* Indicador de dados reais vs mock */}
+                              {dashboardData?.friends?.mock !== undefined && (
+                                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  dashboardData.friends.mock 
+                                    ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-500/50' 
+                                    : 'bg-green-600/30 text-green-300 border border-green-500/50'
+                                }`}>
+                                  {dashboardData.friends.mock ? '📋 Dados Demo' : '🔗 Dados Reais'}
+                                </div>
+                              )}
+                              <div className="text-sm text-gray-400">
+                                {dashboardData?.friends?.total || 0} amigos
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Warning para dados mock */}
+                          {dashboardData?.friends?.mock && (
+                            <div className="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-4 mb-4">
+                              <div className="flex items-start space-x-3">
+                                <ExclamationTriangleIcon className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-yellow-400 text-sm font-medium mb-1">
+                                    Exibindo dados de demonstração
+                                  </p>
+                                  <p className="text-yellow-300 text-xs">
+                                    Para ver seus amigos reais do VRChat, é necessário reautenticar sua conta para obter um cookie de sessão atualizado.
+                                  </p>
+                                  <button
+                                    onClick={() => setShowLoginForm(true)}
+                                    className="mt-2 text-yellow-400 hover:text-yellow-300 text-xs underline"
+                                  >
+                                    Reautenticar agora
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Success message para dados reais */}
+                          {dashboardData?.friends?.mock === false && (
+                            <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-4 mb-4">
+                              <div className="flex items-start space-x-3">
+                                <ShieldCheckIcon className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-green-400 text-sm font-medium">
+                                    Conectado com sucesso à API do VRChat
+                                  </p>
+                                  <p className="text-green-300 text-xs">
+                                    Exibindo dados reais da sua conta VRChat
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {dashboardData?.friends && dashboardData.friends.friends && dashboardData.friends.friends.length > 0 ? (
+                            <div className="space-y-3">
+                              {dashboardData.friends.friends.map((friend, index) => (
+                                <div key={friend.id || index} className="bg-gray-700 rounded-lg p-4 flex items-center space-x-4">
+                                  <img
+                                    src={friend.currentAvatarImageUrl}
+                                    alt={friend.displayName}
+                                    className="w-12 h-12 rounded-lg object-cover bg-gray-600"
+                                    onError={(e) => {
+                                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjMzc0MTUxIi8+CjxwYXRoIGQ9Ik0yNCAxMkMxOC40NzcgMTIgMTQgMTYuNDc3IDE0IDIyUzE4LjQ3NyAzMiAyNCAzMlMzNCAyNy41MjMgMzQgMjJTMjkuNTIzIDEyIDI0IDEyWk0yNCAyOEMyMC42ODYgMjggMTggMjUuMzE0IDE4IDIyUzIwLjY4NiAxNiAyNCAxNlMyOCAxOC42ODYgMjggMjJTMjUuMzE0IDI4IDI0IDI4WiIgZmlsbD0iIzZCNzI4MCIvPgo8L3N2Zz4K'
+                                    }}
+                                  />
+                                  <div className="flex-1">
+                                    <h5 className="text-white font-medium">{friend.displayName}</h5>
+                                    <p className="text-gray-400 text-sm">{friend.statusDescription || 'Sem status'}</p>
+                                    {friend.location && friend.location !== 'offline' && friend.location !== 'private' && (
+                                      <p className="text-gray-500 text-xs">📍 {friend.location}</p>
+                                    )}
+                                  </div>
+                                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    friend.status === 'online' 
+                                      ? 'bg-green-600 text-green-100' 
+                                      : friend.status === 'active'
+                                      ? 'bg-blue-600 text-blue-100'
+                                      : friend.status === 'join me'
+                                      ? 'bg-purple-600 text-purple-100'
+                                      : friend.status === 'busy'
+                                      ? 'bg-orange-600 text-orange-100'
+                                      : 'bg-gray-600 text-gray-300'
+                                  }`}>
+                                    {friend.status === 'online' ? '🟢 Online' 
+                                     : friend.status === 'active' ? '🔵 Ativo' 
+                                     : friend.status === 'join me' ? '🟣 Me Junte' 
+                                     : friend.status === 'busy' ? '🟠 Ocupado' 
+                                     : '⚫ Offline'}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center text-gray-400 py-8">
+                              <p>Nenhum amigo encontrado ou erro ao carregar dados</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Worlds Section */}
+                      {activeSection === 'worlds' && (
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-white text-xl font-bold">Mundos Visitados</h3>
+                            {/* Indicador de dados reais vs mock */}
+                            {dashboardData?.recentWorlds?.mock !== undefined && (
+                              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                dashboardData.recentWorlds.mock 
+                                  ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-500/50' 
+                                  : 'bg-green-600/30 text-green-300 border border-green-500/50'
+                              }`}>
+                                {dashboardData.recentWorlds.mock ? '📋 Dados Demo' : '🔗 Dados Reais'}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Warning para dados mock */}
+                          {dashboardData?.recentWorlds?.mock && (
+                            <div className="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-4 mb-4">
+                              <div className="flex items-start space-x-3">
+                                <ExclamationTriangleIcon className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-yellow-400 text-sm font-medium mb-1">
+                                    Exibindo dados de demonstração
+                                  </p>
+                                  <p className="text-yellow-300 text-xs">
+                                    Para ver seus mundos reais do VRChat, é necessário reautenticar sua conta.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {dashboardData?.recentWorlds && (
+                            <div className="grid gap-4">
+                              {dashboardData.recentWorlds.worlds?.map((world, index) => (
+                                <div key={index} className="bg-gray-700 rounded-lg p-4 flex items-center space-x-4">
+                                  <img
+                                    src={world.imageUrl}
+                                    alt={world.name}
+                                    className="w-16 h-16 rounded-lg object-cover"
+                                  />
+                                  <div className="flex-1">
+                                    <h5 className="text-white font-medium">{world.name}</h5>
+                                    <p className="text-gray-400 text-sm">por {world.authorName}</p>
+                                    <p className="text-gray-300 text-sm">{world.description}</p>
+                                    <p className="text-gray-500 text-xs mt-1">
+                                      Capacidade: {world.capacity} players • Visitado {new Date(world.visitedAt).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Stats Section */}
+                      {activeSection === 'stats' && (
+                        <div className="space-y-6">
+                          <h3 className="text-white text-xl font-bold mb-4">Estatísticas da Conta</h3>
+                          
+                          {dashboardData?.stats && (
+                            <div className="grid gap-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-gray-700 rounded-lg p-6">
+                                  <h4 className="text-white font-semibold mb-4">Informações da Conta</h4>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">Trust Rank:</span>
+                                      <span className="text-orange-400 font-medium">{dashboardData.stats.trustRank}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">Data de Criação:</span>
+                                      <span className="text-white">{new Date(dashboardData.stats.accountCreated).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">Último Login:</span>
+                                      <span className="text-white">{new Date(dashboardData.stats.lastLogin).toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="bg-gray-700 rounded-lg p-6">
+                                  <h4 className="text-white font-semibold mb-4">Estatísticas de Uso</h4>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">Horas Jogadas:</span>
+                                      <span className="text-purple-400 font-medium">{dashboardData.stats.hoursPlayed}h</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">Total de Fotos:</span>
+                                      <span className="text-blue-400 font-medium">{dashboardData.stats.totalPhotos}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-400">Conectado ao VRCHIEVE:</span>
+                                      <span className="text-green-400 font-medium">{new Date(dashboardData.stats.joinDate).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Disconnect Button */}
+                <div className="text-center">
+                  <button
+                    onClick={handleDisconnect}
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200"
+                  >
+                    Desconectar Conta VRChat
+                  </button>
+                </div>
               </div>
             )}
 
