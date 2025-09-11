@@ -100,6 +100,482 @@ const ActivityMonitor = ({
       .slice(0, 10)
   }, [filteredLogs])
 
+  // Componente Network Visualization
+  const NetworkVisualization = ({ logs }) => {
+    const [selectedFriend, setSelectedFriend] = useState(null)
+    
+    // Agrupar logs por amigo
+    const friendNodes = logs.reduce((acc, log) => {
+      if (!acc[log.friendId]) {
+        acc[log.friendId] = {
+          id: log.friendId,
+          name: log.friendName,
+          avatar: log.friendAvatar,
+          logs: [],
+          types: {},
+          connections: new Set()
+        }
+      }
+      
+      acc[log.friendId].logs.push(log)
+      acc[log.friendId].types[log.type] = (acc[log.friendId].types[log.type] || 0) + 1
+      
+      return acc
+    }, {})
+    
+    // Criar conexões baseadas em atividades simultâneas ou relacionadas
+    Object.values(friendNodes).forEach(friend => {
+      friend.logs.forEach(log => {
+        const timeWindow = 30 * 60 * 1000 // 30 minutos
+        const logTime = new Date(log.timestamp).getTime()
+        
+        Object.values(friendNodes).forEach(otherFriend => {
+          if (friend.id !== otherFriend.id) {
+            const hasRelatedActivity = otherFriend.logs.some(otherLog => {
+              const otherTime = new Date(otherLog.timestamp).getTime()
+              return Math.abs(logTime - otherTime) < timeWindow && 
+                     (otherLog.type === log.type || 
+                      (log.type === 'world_change' && otherLog.type === 'world_change' && 
+                       log.details?.toWorld === otherLog.details?.toWorld))
+            })
+            
+            if (hasRelatedActivity) {
+              friend.connections.add(otherFriend.id)
+            }
+          }
+        })
+      })
+    })
+    
+    const friends = Object.values(friendNodes)
+    
+    // Calcular posições em círculo
+    const centerX = 200
+    const centerY = 200
+    const radius = 150
+    
+    const getPosition = (index, total) => {
+      const angle = (index / total) * 2 * Math.PI
+      return {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+      }
+    }
+    
+    // Obter cor dominante
+    const getDominantColor = (types) => {
+      const dominant = Object.entries(types).reduce((a, b) => types[a[0]] > types[b[0]] ? a : b)
+      const colorMap = {
+        'status_change': '#F59E0B',
+        'world_change': '#10B981',
+        'avatar_change': '#EC4899',
+        'description_change': '#3B82F6',
+        'bio_change': '#8B5CF6',
+        'came_online': '#059669',
+        'went_offline': '#DC2626',
+        'joined_private': '#6366F1'
+      }
+      return colorMap[dominant[0]] || '#6B7280'
+    }
+    
+    return (
+      <div className="relative">
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-sm text-gray-400 flex items-center space-x-2">
+            <GlobeAltIcon className="w-4 h-4" />
+            <span>{friends.length} amigos conectados • {logs.length} atividades</span>
+          </div>
+          <button
+            onClick={() => setSelectedFriend(null)}
+            className={`px-3 py-1 rounded text-xs transition-colors ${
+              selectedFriend ? 'bg-red-600 text-white' : 'bg-gray-600 text-gray-400'
+            }`}
+            disabled={!selectedFriend}
+          >
+            Resetar seleção
+          </button>
+        </div>
+        
+        <div className="bg-gray-900 rounded-xl p-4" style={{ height: '500px' }}>
+          <svg width="100%" height="100%" viewBox="0 0 400 400" className="overflow-visible">
+            {/* Conexões */}
+            {friends.map((friend, index) => {
+              const pos = getPosition(index, friends.length)
+              
+              return Array.from(friend.connections).map(connectionId => {
+                const connectedFriend = friends.find(f => f.id === connectionId)
+                if (!connectedFriend) return null
+                
+                const connectedIndex = friends.indexOf(connectedFriend)
+                const connectedPos = getPosition(connectedIndex, friends.length)
+                
+                return (
+                  <line
+                    key={`${friend.id}-${connectionId}`}
+                    x1={pos.x}
+                    y1={pos.y}
+                    x2={connectedPos.x}
+                    y2={connectedPos.y}
+                    stroke="rgba(139, 92, 246, 0.3)"
+                    strokeWidth={selectedFriend === friend.id || selectedFriend === connectionId ? "2" : "1"}
+                    className="transition-all duration-300"
+                  />
+                )
+              })
+            })}
+            
+            {/* Nós dos amigos */}
+            {friends.map((friend, index) => {
+              const pos = getPosition(index, friends.length)
+              const isSelected = selectedFriend === friend.id
+              const nodeSize = Math.min(20 + friend.logs.length * 2, 40)
+              
+              return (
+                <g key={friend.id}>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={nodeSize}
+                    fill={getDominantColor(friend.types)}
+                    stroke={isSelected ? "#F59E0B" : "transparent"}
+                    strokeWidth={isSelected ? "3" : "0"}
+                    className="cursor-pointer transition-all duration-300 hover:stroke-white hover:stroke-2"
+                    onClick={() => setSelectedFriend(isSelected ? null : friend.id)}
+                  />
+                  
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={nodeSize - 4}
+                    fill="url(#avatar-pattern)"
+                    className="cursor-pointer"
+                    onClick={() => setSelectedFriend(isSelected ? null : friend.id)}
+                  />
+                  
+                  <circle
+                    cx={pos.x + nodeSize - 8}
+                    cy={pos.y - nodeSize + 8}
+                    r="8"
+                    fill="#1F2937"
+                    stroke="#374151"
+                    strokeWidth="2"
+                  />
+                  <text
+                    x={pos.x + nodeSize - 8}
+                    y={pos.y - nodeSize + 8}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize="10"
+                    fill="#FFFFFF"
+                    fontWeight="bold"
+                  >
+                    {friend.logs.length}
+                  </text>
+                  
+                  <text
+                    x={pos.x}
+                    y={pos.y + nodeSize + 15}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill={isSelected ? "#F59E0B" : "#9CA3AF"}
+                    fontWeight={isSelected ? "bold" : "normal"}
+                    className="pointer-events-none"
+                  >
+                    {friend.name.length > 12 ? friend.name.substring(0, 12) + '...' : friend.name}
+                  </text>
+                </g>
+              )
+            })}
+            
+            <defs>
+              <pattern id="avatar-pattern" patternUnits="objectBoundingBox" width="1" height="1">
+                <rect width="1" height="1" fill="#374151"/>
+                <circle cx="0.5" cy="0.35" r="0.2" fill="#6B7280"/>
+                <ellipse cx="0.5" cy="0.8" rx="0.35" ry="0.3" fill="#6B7280"/>
+              </pattern>
+            </defs>
+          </svg>
+        </div>
+        
+        {/* Detalhes do amigo selecionado */}
+        {selectedFriend && friendNodes[selectedFriend] && (
+          <div className="mt-6 bg-gray-700 rounded-xl p-4 border-l-4 border-orange-500">
+            <div className="flex items-center space-x-3 mb-4">
+              <img
+                src={friendNodes[selectedFriend].avatar}
+                alt={friendNodes[selectedFriend].name}
+                className="w-12 h-12 rounded-full object-cover bg-gray-600"
+                onError={(e) => {
+                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjMzc0MTUxIiByeD0iMjQiLz48cGF0aCBkPSJNMjQgMTJDMTguNDggMTIgMTQgMTYuNDggMTQgMjJTMTguNDggMzIgMjQgMzJTMzQgMjcuNTIgMzQgMjJTMjkuNTIgMTIgMjQgMTJaTTI0IDI2QzIwLjY4IDI2IDE4IDIzLjMyIDE4IDIwUzIwLjY4IDE0IDI0IDE0UzMwIDIwLjY4IDMwIDIwUzI3LjMyIDI2IDI0IDI2WiIgZmlsbD0iIzZCNzI4MCIvPjwvc3ZnPg=='
+                }}
+              />
+              <div>
+                <h4 className="text-white font-semibold">{friendNodes[selectedFriend].name}</h4>
+                <p className="text-sm text-gray-400">{friendNodes[selectedFriend].logs.length} atividades</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Distribuição de atividades:</p>
+                <div className="space-y-2">
+                  {Object.entries(friendNodes[selectedFriend].types)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([type, count]) => (
+                      <div key={type} className="flex items-center justify-between">
+                        <span className="text-xs text-gray-300">
+                          {type === 'status_change' && 'Status'}
+                          {type === 'world_change' && 'Mundos'}
+                          {type === 'avatar_change' && 'Avatars'}
+                          {type === 'description_change' && 'Descrição'}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-16 bg-gray-600 rounded-full h-2">
+                            <div 
+                              className="h-2 bg-orange-500 rounded-full"
+                              style={{ width: `${(count / friendNodes[selectedFriend].logs.length) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-white font-medium w-6">{count}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Conectado com:</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {Array.from(friendNodes[selectedFriend].connections)
+                    .map(connectionId => friends.find(f => f.id === connectionId))
+                    .filter(Boolean)
+                    .slice(0, 6)
+                    .map((connectedFriend, index) => (
+                      <div key={index} className="flex items-center space-x-2 text-xs">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <span className="text-gray-300">{connectedFriend.name}</span>
+                      </div>
+                    ))}
+                  {friendNodes[selectedFriend].connections.size === 0 && (
+                    <span className="text-xs text-gray-500">Nenhuma conexão detectada</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Componente Heatmap Visualization
+  const HeatmapVisualization = ({ logs }) => {
+    const [selectedDay, setSelectedDay] = useState(null)
+    const [selectedHour, setSelectedHour] = useState(null)
+    
+    // Criar matriz de atividades por dia da semana e hora
+    const activityMatrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({
+      count: 0,
+      logs: [],
+      types: {}
+    })))
+    
+    // Preencher matriz com dados
+    logs.forEach(log => {
+      const date = new Date(log.timestamp)
+      const dayOfWeek = date.getDay() 
+      const hour = date.getHours()
+      
+      activityMatrix[dayOfWeek][hour].count++
+      activityMatrix[dayOfWeek][hour].logs.push(log)
+      activityMatrix[dayOfWeek][hour].types[log.type] = 
+        (activityMatrix[dayOfWeek][hour].types[log.type] || 0) + 1
+    })
+    
+    // Encontrar valores máximo e mínimo para normalização
+    const maxActivity = Math.max(...activityMatrix.flat().map(cell => cell.count))
+    const minActivity = Math.min(...activityMatrix.flat().map(cell => cell.count))
+    
+    // Função para obter intensidade da cor
+    const getIntensity = (count) => {
+      if (maxActivity === 0) return 0
+      return (count - minActivity) / (maxActivity - minActivity)
+    }
+    
+    // Função para obter cor baseada na intensidade
+    const getHeatmapColor = (intensity) => {
+      if (intensity === 0) return 'rgba(75, 85, 99, 0.3)'
+      
+      const colors = [
+        'rgba(59, 130, 246, 0.3)',   
+        'rgba(16, 185, 129, 0.4)',   
+        'rgba(245, 158, 11, 0.5)',   
+        'rgba(239, 68, 68, 0.6)',    
+        'rgba(220, 38, 38, 0.8)'     
+      ]
+      
+      const index = Math.floor(intensity * (colors.length - 1))
+      return colors[Math.min(index, colors.length - 1)]
+    }
+    
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`)
+    
+    return (
+      <div className="relative">
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-sm text-gray-400 flex items-center space-x-2">
+            <ChartBarIcon className="w-4 h-4 text-orange-500" />
+            <span>Mapa de calor semanal • {logs.length} atividades • Pico: {maxActivity} atividades/hora</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="text-gray-400">Baixa</span>
+              <div className="flex space-x-1">
+                {[0.2, 0.4, 0.6, 0.8, 1.0].map((intensity, index) => (
+                  <div
+                    key={index}
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: getHeatmapColor(intensity) }}
+                  ></div>
+                ))}
+              </div>
+              <span className="text-gray-400">Alta</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+          <div className="relative" style={{ minWidth: '800px' }}>
+            <div className="flex mb-2">
+              <div className="w-12"></div>
+              {hourLabels.map((hour, index) => (
+                <div
+                  key={index}
+                  className="flex-1 text-center text-xs text-gray-400 min-w-8"
+                  style={{ fontSize: '10px' }}
+                >
+                  {index % 3 === 0 ? hour : ''}
+                </div>
+              ))}
+            </div>
+            
+            {dayNames.map((dayName, dayIndex) => (
+              <div key={dayIndex} className="flex items-center mb-1">
+                <div className="w-12 text-xs text-gray-400 text-right pr-2">
+                  {dayName}
+                </div>
+                
+                <div className="flex-1 flex">
+                  {activityMatrix[dayIndex].map((cell, hourIndex) => {
+                    const intensity = getIntensity(cell.count)
+                    const isSelected = selectedDay === dayIndex && selectedHour === hourIndex
+                    
+                    return (
+                      <div
+                        key={hourIndex}
+                        className={`flex-1 h-8 border border-gray-800 cursor-pointer transition-all duration-200 hover:scale-105 min-w-8 ${
+                          isSelected ? 'ring-2 ring-orange-400' : ''
+                        }`}
+                        style={{
+                          backgroundColor: getHeatmapColor(intensity),
+                          boxShadow: isSelected ? '0 0 10px rgba(251, 146, 60, 0.5)' : 'none'
+                        }}
+                        onClick={() => {
+                          if (selectedDay === dayIndex && selectedHour === hourIndex) {
+                            setSelectedDay(null)
+                            setSelectedHour(null)
+                          } else {
+                            setSelectedDay(dayIndex)
+                            setSelectedHour(hourIndex)
+                          }
+                        }}
+                        title={`${dayName} ${hourIndex}:00 - ${cell.count} atividades`}
+                      >
+                        {cell.count > 0 && (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold opacity-80">
+                              {cell.count > 9 ? '9+' : cell.count > 0 ? cell.count : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Estatísticas detalhadas */}
+        {selectedDay !== null && selectedHour !== null && (
+          <div className="mt-6 bg-gray-700 rounded-xl p-4 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-white font-semibold flex items-center gap-2">
+                <ClockIcon className="w-4 h-4" /> 
+                {dayNames[selectedDay]} {selectedHour}:00
+              </h4>
+              <button
+                onClick={() => {
+                  setSelectedDay(null)
+                  setSelectedHour(null)
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Atividades neste período:</p>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Total:</span>
+                    <span className="text-white font-medium">{activityMatrix[selectedDay][selectedHour].count}</span>
+                  </div>
+                  {Object.entries(activityMatrix[selectedDay][selectedHour].types).map(([type, count]) => (
+                    <div key={type} className="flex justify-between">
+                      <span className="text-gray-300">
+                        {type === 'status_change' && 'Status'}
+                        {type === 'world_change' && 'Mundos'}
+                        {type === 'avatar_change' && 'Avatars'}
+                        {type === 'description_change' && 'Descrição'}
+                        {type === 'bio_change' && 'Bio'}
+                        {type === 'came_online' && 'Online'}
+                        {type === 'went_offline' && 'Offline'}
+                        {type === 'joined_private' && 'Privado'}:
+                      </span>
+                      <span className="text-white font-medium">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Amigos ativos:</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {[...new Set(activityMatrix[selectedDay][selectedHour].logs.map(log => log.friendName))]
+                    .slice(0, 8)
+                    .map((friendName, index) => (
+                      <div key={index} className="flex items-center space-x-2 text-xs">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span className="text-gray-300">{friendName}</span>
+                        <span className="text-gray-500">
+                          ({activityMatrix[selectedDay][selectedHour].logs.filter(log => log.friendName === friendName).length})
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // Componente de visualização Flow Map
   const FlowMapVisualization = ({ logs }) => {
     const [selectedNode, setSelectedNode] = useState(null)
@@ -445,56 +921,199 @@ const ActivityMonitor = ({
       <div className="bg-gray-800 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-white flex items-center">
-            <Cog6ToothIcon className="w-4 h-4 mr-2" />
+            <Cog6ToothIcon className="w-5 h-5 mr-2" />
             Modo de Visualização
           </h3>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'timeline' }))}
-              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-2 ${
                 activityFilters.viewMode === 'timeline' 
                   ? 'bg-orange-600 text-white' 
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              <ClipboardIcon className="w-4 h-4 mr-2" />
-              Lista Timeline
+              <ClipboardIcon className="w-4 h-4" />
+              <span>Timeline</span>
             </button>
             <button
               onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'flowmap' }))}
-              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-2 ${
                 activityFilters.viewMode === 'flowmap' 
                   ? 'bg-purple-600 text-white' 
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              <MapIcon className="w-4 h-4 mr-2" />
-              Mapa de Fluxo
+              <MapIcon className="w-4 h-4" />
+              <span>Fluxo Temporal</span>
+            </button>
+            <button
+              onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'network' }))}
+              className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-2 ${
+                activityFilters.viewMode === 'network' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <GlobeAltIcon className="w-4 h-4" />
+              <span>Rede Social</span>
+            </button>
+            <button
+              onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'heatmap' }))}
+              className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-2 ${
+                activityFilters.viewMode === 'heatmap' 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <ChartBarIcon className="w-4 h-4" />
+              <span>Mapa de Calor</span>
             </button>
           </div>
+        </div>
+        
+        {/* Descrição do modo selecionado */}
+        <div className="text-sm text-gray-400">
+          {activityFilters.viewMode === 'timeline' && (
+            <p>Lista cronológica detalhada de todas as atividades dos amigos com informações contextuais.</p>
+          )}
+          {activityFilters.viewMode === 'flowmap' && (
+            <p>Visualização temporal em fluxo mostrando picos de atividade ao longo das horas do dia.</p>
+          )}
+          {activityFilters.viewMode === 'network' && (
+            <p>Rede de conexões entre amigos baseada em atividades simultâneas e padrões comportamentais.</p>
+          )}
+          {activityFilters.viewMode === 'heatmap' && (
+            <p>Mapa de calor semanal mostrando padrões de atividade por dia da semana e hora do dia.</p>
+          )}
         </div>
       </div>
 
       {/* Visualização de Atividades */}
       <div className="bg-gray-800 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          {activityFilters.viewMode === 'timeline' && 'Timeline de Atividades'}
-          {activityFilters.viewMode === 'flowmap' && 'Mapa de Fluxo Temporal'}
-        </h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+            {activityFilters.viewMode === 'timeline' && (
+              <>
+                <ClipboardIcon className="w-5 h-5 text-orange-500" />
+                <span>Timeline de Atividades</span>
+              </>
+            )}
+            {activityFilters.viewMode === 'flowmap' && (
+              <>
+                <MapIcon className="w-5 h-5 text-purple-500" />
+                <span>Mapa de Fluxo Temporal</span>
+              </>
+            )}
+            {activityFilters.viewMode === 'network' && (
+              <>
+                <GlobeAltIcon className="w-5 h-5 text-blue-500" />
+                <span>Rede de Conexões Sociais</span>
+              </>
+            )}
+            {activityFilters.viewMode === 'heatmap' && (
+              <>
+                <ChartBarIcon className="w-5 h-5 text-green-500" />
+                <span>Mapa de Calor de Atividades</span>
+              </>
+            )}
+          </h3>
+          
+          {filteredLogs.length > 0 && (
+            <div className="flex items-center space-x-4 text-sm text-gray-400">
+              <span>{filteredLogs.length} atividades</span>
+              {activityFilters.viewMode === 'heatmap' && (
+                <span>• {Math.max(...filteredLogs.map(log => {
+                  const date = new Date(log.timestamp)
+                  return filteredLogs.filter(l => 
+                    new Date(l.timestamp).getDay() === date.getDay() && 
+                    new Date(l.timestamp).getHours() === date.getHours()
+                  ).length
+                }))} pico máximo</span>
+              )}
+              {activityFilters.viewMode === 'network' && (
+                <span>• {[...new Set(filteredLogs.map(log => log.friendId))].length} amigos únicos</span>
+              )}
+            </div>
+          )}
+        </div>
         
         {filteredLogs.length === 0 ? (
-          <div className="text-center py-8">
-            <ClockIcon className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">Nenhuma atividade registrada ainda.</p>
-            <p className="text-sm text-gray-500 mt-1">
+          <div className="text-center py-12">
+            <div className="flex justify-center mb-4">
+              {activityFilters.viewMode === 'timeline' && <ClipboardIcon className="w-16 h-16 text-gray-500" />}
+              {activityFilters.viewMode === 'flowmap' && <MapIcon className="w-16 h-16 text-gray-500" />}
+              {activityFilters.viewMode === 'network' && <GlobeAltIcon className="w-16 h-16 text-gray-500" />}
+              {activityFilters.viewMode === 'heatmap' && <ChartBarIcon className="w-16 h-16 text-gray-500" />}
+            </div>
+            <p className="text-gray-400 text-lg mb-2">Nenhuma atividade registrada ainda</p>
+            <p className="text-sm text-gray-500">
               As atividades dos amigos aparecerão aqui conforme eles mudam de status, mundo ou avatar.
             </p>
+            {(activityFilters.type !== 'all' || activityFilters.friend !== 'all' || activityFilters.timeRange !== 'all') && (
+              <button
+                onClick={() => setActivityFilters(prev => ({ 
+                  ...prev, 
+                  type: 'all', 
+                  friend: 'all', 
+                  timeRange: 'all' 
+                }))}
+                className="mt-4 bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center space-x-2 mx-auto"
+              >
+                <ArrowPathIcon className="w-4 h-4" />
+                <span>Limpar Filtros</span>
+              </button>
+            )}
           </div>
         ) : (
-          <>
-            {activityFilters.viewMode === 'timeline' && <TimelineView logs={filteredLogs} />}
-            {activityFilters.viewMode === 'flowmap' && <FlowMapVisualization logs={filteredLogs} />}
-          </>
+          <div className="min-h-[400px]">
+            <AnimatePresence mode="wait">
+              {activityFilters.viewMode === 'timeline' && (
+                <motion.div
+                  key="timeline"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <TimelineView logs={filteredLogs} />
+                </motion.div>
+              )}
+              {activityFilters.viewMode === 'flowmap' && (
+                <motion.div
+                  key="flowmap"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <FlowMapVisualization logs={filteredLogs} />
+                </motion.div>
+              )}
+              {activityFilters.viewMode === 'network' && (
+                <motion.div
+                  key="network"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <NetworkVisualization logs={filteredLogs} />
+                </motion.div>
+              )}
+              {activityFilters.viewMode === 'heatmap' && (
+                <motion.div
+                  key="heatmap"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <HeatmapVisualization logs={filteredLogs} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
       </div>
 
