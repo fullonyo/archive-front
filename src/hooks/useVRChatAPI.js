@@ -507,27 +507,6 @@ export const useVRChatAPI = () => {
     }
   }, [])
 
-  // Busca instâncias de mundo
-  const getWorldInstances = useCallback(async (worldId = null) => {
-    try {
-      setLoading(true)
-      const url = worldId ? `/vrchat/instances?worldId=${worldId}` : '/vrchat/instances'
-      const response = await api.get(url)
-      
-      if (response.data.success) {
-        return { success: true, data: response.data.data }
-      } else {
-        throw new Error(response.data.message)
-      }
-    } catch (err) {
-      console.error('Erro ao buscar instâncias:', err)
-      setError(err.response?.data?.message || 'Erro ao buscar instâncias')
-      return { success: false, error: err.response?.data?.message || 'Erro ao buscar instâncias' }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
   // Função para buscar dados completos do dashboard
   const getDashboardData = useCallback(async () => {
     try {
@@ -565,6 +544,70 @@ export const useVRChatAPI = () => {
       setLoading(false)
     }
   }, [getProfile, getStats, getRecentWorlds, getFriends])
+
+  // World Explorer Functions - buscar mundos
+  const searchWorlds = useCallback(async (query, options = {}) => {
+    try {
+      const params = new URLSearchParams()
+      if (query) params.append('q', query)
+      if (options.tag) params.append('tag', options.tag)
+      if (options.user) params.append('user', options.user)
+      if (options.n) params.append('n', options.n)
+      if (options.offset) params.append('offset', options.offset)
+      if (options.sort) params.append('sort', options.sort)
+      if (options.order) params.append('order', options.order)
+      
+      const response = await api.get(`/vrchat/worlds/search?${params.toString()}`)
+      return response.data
+    } catch (err) {
+      console.error('Erro ao buscar mundos:', err)
+      throw err
+    }
+  }, [])
+
+  // Buscar mundos em destaque
+  const getFeaturedWorlds = useCallback(async () => {
+    try {
+      const response = await api.get('/vrchat/worlds/featured')
+      return response.data
+    } catch (err) {
+      console.error('Erro ao buscar mundos em destaque:', err)
+      throw err
+    }
+  }, [])
+
+  // Buscar detalhes de um mundo específico
+  const getWorldDetails = useCallback(async (worldId) => {
+    try {
+      const response = await api.get(`/vrchat/worlds/${worldId}`)
+      return response.data
+    } catch (err) {
+      console.error('Erro ao buscar detalhes do mundo:', err)
+      throw err
+    }
+  }, [])
+
+  // Buscar mundos populares
+  const getPopularWorlds = useCallback(async () => {
+    try {
+      const response = await api.get('/vrchat/worlds/search?sort=popularity&order=descending&n=20')
+      return response.data
+    } catch (err) {
+      console.error('Erro ao buscar mundos populares:', err)
+      throw err
+    }
+  }, [])
+
+  // Buscar instâncias ativas de um mundo específico
+  const getWorldInstances = useCallback(async (worldId) => {
+    try {
+      const response = await api.get(`/vrchat/worlds/${worldId}/instances`)
+      return response.data
+    } catch (err) {
+      console.error('Erro ao buscar instâncias do mundo:', err)
+      throw err
+    }
+  }, [])
 
   return {
     // Estado
@@ -605,6 +648,13 @@ export const useVRChatAPI = () => {
     getRecentWorlds,
     getStats,
     getWorldInstances,
-    getDashboardData
+    getDashboardData,
+    
+    // World Explorer functions
+    searchWorlds,
+    getFeaturedWorlds,
+    getWorldDetails,
+    getPopularWorlds,
+    getWorldInstances
   }
 }

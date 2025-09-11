@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 import { useVRChatAPI } from '../hooks/useVRChatAPI'
+import WorldDetailsModal from '../components/VRChat/WorldDetailsModal'
 import { 
   LinkIcon,
   GlobeAltIcon,
@@ -23,7 +24,8 @@ import {
   BoltIcon,
   PlayIcon,
   XMarkIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 
 const VRChatAPIPage = () => {
@@ -69,6 +71,16 @@ const VRChatAPIPage = () => {
   const [selectedFriend, setSelectedFriend] = useState(null)
   const [showFriendModal, setShowFriendModal] = useState(false)
 
+  // Estados para logs de atividade dos amigos
+  const [activityLogs, setActivityLogs] = useState([])
+  const [friendsHistory, setFriendsHistory] = useState(new Map()) // Para comparar mudanças
+  const [activityFilters, setActivityFilters] = useState({
+    type: 'all', // all, status, world, avatar, profile
+    friend: 'all', // all ou ID específico do amigo
+    timeRange: '24h', // 1h, 24h, 7d, 30d
+    viewMode: 'flowmap' // timeline, flowmap, network, heatmap
+  })
+
   // Auto-refresh amigos a cada 30 segundos quando conectado
   useEffect(() => {
     if (isConnected && !friendsRefreshInterval) {
@@ -76,6 +88,11 @@ const VRChatAPIPage = () => {
         try {
           const friendsResult = await getFriends()
           if (friendsResult.success && dashboardData) {
+            // Detectar mudanças antes de atualizar o estado
+            if (friendsResult.data?.friends) {
+              detectFriendChanges(friendsResult.data.friends)
+            }
+            
             setDashboardData(prev => ({
               ...prev,
               friends: friendsResult.data
@@ -98,6 +115,35 @@ const VRChatAPIPage = () => {
     }
   }, [isConnected, getFriends, dashboardData, friendsRefreshInterval])
 
+  // Auto-refresh mais frequente quando na aba de atividades
+  useEffect(() => {
+    let activityInterval
+    
+    if (isConnected && activeSection === 'activity') {
+      activityInterval = setInterval(async () => {
+        try {
+          const friendsResult = await getFriends()
+          if (friendsResult.success && friendsResult.data?.friends) {
+            detectFriendChanges(friendsResult.data.friends)
+            setDashboardData(prev => ({
+              ...prev,
+              friends: friendsResult.data
+            }))
+            setLastRefresh(new Date())
+          }
+        } catch (error) {
+          console.error('Erro no auto-refresh de atividades:', error)
+        }
+      }, 15000) // 15 segundos - mais frequente para atividades
+    }
+
+    return () => {
+      if (activityInterval) {
+        clearInterval(activityInterval)
+      }
+    }
+  }, [isConnected, activeSection, getFriends])
+
   // Carrega dados do dashboard quando conectado
   useEffect(() => {
     if (isConnected && !dashboardData) {
@@ -118,6 +164,14 @@ const VRChatAPIPage = () => {
         console.log('✅ loadDashboardData: Dados recebidos:', result.data)
         console.log('👥 loadDashboardData: Friends data:', result.data.friends)
         console.log('🌍 loadDashboardData: Recent worlds:', result.data.recentWorlds)
+        
+        // Detectar mudanças nos amigos antes de atualizar o estado
+        if (result.data.friends && Array.isArray(result.data.friends)) {
+          console.log('🔍 Detectando mudanças nos amigos:', result.data.friends.length, 'amigos')
+          detectFriendChanges(result.data.friends)
+        } else {
+          console.log('⚠️ Dados de amigos não são um array:', typeof result.data.friends)
+        }
         
         setDashboardData(result.data)
         setLastRefresh(new Date())
@@ -409,6 +463,1080 @@ const VRChatAPIPage = () => {
         trustRank: currentUser.tags?.find(tag => tag.includes('system_trust_'))?.replace('system_trust_', '') || 'unknown',
         status: currentUser.status || 'unknown'
       } : null
+    }
+  }
+
+  // Componente de Mapa de Calor de Atividades
+  const HeatmapVisualization = ({ logs }) => {
+    const [selectedDay, setSelectedDay] = useState(null)
+    const [selectedHour, setSelectedHour] = useState(null)
+    
+    // Criar matriz de atividades por dia da semana e hora
+    const activityMatrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({
+      count: 0,
+      logs: [],
+      types: {}
+    })))
+    
+    // Preencher matriz com dados
+    logs.forEach(log => {
+      const date = new Date(log.timestamp)
+      const dayOfWeek = date.getDay() // 0 = domingo, 1 = segunda, etc.
+      const hour = date.getHours()
+      
+      activityMatrix[dayOfWeek][hour].count++
+      activityMatrix[dayOfWeek][hour].logs.push(log)
+      activityMatrix[dayOfWeek][hour].types[log.type] = 
+        (activityMatrix[dayOfWeek][hour].types[log.type] || 0) + 1
+    })
+    
+    // Encontrar valores máximo e mínimo para normalização
+    const maxActivity = Math.max(...activityMatrix.flat().map(cell => cell.count))
+    const minActivity = Math.min(...activityMatrix.flat().map(cell => cell.count))
+    
+    // Função para obter intensidade da cor
+    const getIntensity = (count) => {
+      if (maxActivity === 0) return 0
+      return (count - minActivity) / (maxActivity - minActivity)
+    }
+    
+    // Função para obter cor baseada na intensidade
+    const getHeatmapColor = (intensity) => {
+      if (intensity === 0) return 'rgba(75, 85, 99, 0.3)' // gray-600 transparente
+      
+      // Gradiente de azul para vermelho baseado na intensidade
+      const colors = [
+        'rgba(59, 130, 246, 0.3)',   // blue-500
+        'rgba(16, 185, 129, 0.4)',   // green-500
+        'rgba(245, 158, 11, 0.5)',   // yellow-500
+        'rgba(239, 68, 68, 0.6)',    // red-500
+        'rgba(220, 38, 38, 0.8)'     // red-600
+      ]
+      
+      const index = Math.floor(intensity * (colors.length - 1))
+      return colors[Math.min(index, colors.length - 1)]
+    }
+    
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`)
+    
+    return (
+      <div className="relative">
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-sm text-gray-400">
+            🔥 Mapa de calor semanal • {logs.length} atividades • Pico: {maxActivity} atividades/hora
+          </div>
+          <div className="flex items-center space-x-4">
+            {/* Legenda de cores */}
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="text-gray-400">Baixa</span>
+              <div className="flex space-x-1">
+                {[0.2, 0.4, 0.6, 0.8, 1.0].map((intensity, index) => (
+                  <div
+                    key={index}
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: getHeatmapColor(intensity) }}
+                  ></div>
+                ))}
+              </div>
+              <span className="text-gray-400">Alta</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Grid do Heatmap */}
+        <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+          <div className="relative" style={{ minWidth: '800px' }}>
+            {/* Labels das horas (topo) */}
+            <div className="flex mb-2">
+              <div className="w-12"></div> {/* Espaço para labels dos dias */}
+              {hourLabels.map((hour, index) => (
+                <div
+                  key={index}
+                  className="flex-1 text-center text-xs text-gray-400 min-w-8"
+                  style={{ fontSize: '10px' }}
+                >
+                  {index % 3 === 0 ? hour : ''}
+                </div>
+              ))}
+            </div>
+            
+            {/* Grid principal */}
+            {dayNames.map((dayName, dayIndex) => (
+              <div key={dayIndex} className="flex items-center mb-1">
+                {/* Label do dia */}
+                <div className="w-12 text-xs text-gray-400 text-right pr-2">
+                  {dayName}
+                </div>
+                
+                {/* Células das horas */}
+                <div className="flex-1 flex">
+                  {activityMatrix[dayIndex].map((cell, hourIndex) => {
+                    const intensity = getIntensity(cell.count)
+                    const isSelected = selectedDay === dayIndex && selectedHour === hourIndex
+                    
+                    return (
+                      <div
+                        key={hourIndex}
+                        className={`flex-1 h-8 border border-gray-800 cursor-pointer transition-all duration-200 hover:scale-105 min-w-8 ${
+                          isSelected ? 'ring-2 ring-orange-400' : ''
+                        }`}
+                        style={{
+                          backgroundColor: getHeatmapColor(intensity),
+                          boxShadow: isSelected ? '0 0 10px rgba(251, 146, 60, 0.5)' : 'none'
+                        }}
+                        onClick={() => {
+                          if (selectedDay === dayIndex && selectedHour === hourIndex) {
+                            setSelectedDay(null)
+                            setSelectedHour(null)
+                          } else {
+                            setSelectedDay(dayIndex)
+                            setSelectedHour(hourIndex)
+                          }
+                        }}
+                        title={`${dayName} ${hourIndex}:00 - ${cell.count} atividades`}
+                      >
+                        {/* Indicador de atividade alta */}
+                        {cell.count > 0 && (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold opacity-80">
+                              {cell.count > 9 ? '9+' : cell.count > 0 ? cell.count : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Estatísticas por período */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-gray-800 rounded-lg p-3">
+            <p className="text-xs text-gray-400">Hora mais ativa</p>
+            <p className="text-sm font-semibold text-white">
+              {(() => {
+                let maxHour = 0
+                let maxCount = 0
+                for (let h = 0; h < 24; h++) {
+                  const totalForHour = activityMatrix.reduce((sum, day) => sum + day[h].count, 0)
+                  if (totalForHour > maxCount) {
+                    maxCount = totalForHour
+                    maxHour = h
+                  }
+                }
+                return `${maxHour}:00 (${maxCount})`
+              })()}
+            </p>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-3">
+            <p className="text-xs text-gray-400">Dia mais ativo</p>
+            <p className="text-sm font-semibold text-white">
+              {(() => {
+                let maxDay = 0
+                let maxCount = 0
+                for (let d = 0; d < 7; d++) {
+                  const totalForDay = activityMatrix[d].reduce((sum, hour) => sum + hour.count, 0)
+                  if (totalForDay > maxCount) {
+                    maxCount = totalForDay
+                    maxDay = d
+                  }
+                }
+                return `${dayNames[maxDay]} (${maxCount})`
+              })()}
+            </p>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-3">
+            <p className="text-xs text-gray-400">Período pico</p>
+            <p className="text-sm font-semibold text-white">
+              {(() => {
+                let maxActivity = 0
+                let maxDay = 0
+                let maxHour = 0
+                
+                for (let d = 0; d < 7; d++) {
+                  for (let h = 0; h < 24; h++) {
+                    if (activityMatrix[d][h].count > maxActivity) {
+                      maxActivity = activityMatrix[d][h].count
+                      maxDay = d
+                      maxHour = h
+                    }
+                  }
+                }
+                
+                return maxActivity > 0 ? `${dayNames[maxDay]} ${maxHour}:00` : 'N/A'
+              })()}
+            </p>
+          </div>
+          
+          <div className="bg-gray-800 rounded-lg p-3">
+            <p className="text-xs text-gray-400">Média/hora</p>
+            <p className="text-sm font-semibold text-white">
+              {(logs.length / (7 * 24)).toFixed(1)}
+            </p>
+          </div>
+        </div>
+        
+        {/* Detalhes da célula selecionada */}
+        {selectedDay !== null && selectedHour !== null && (
+          <div className="mt-6 bg-gray-700 rounded-xl p-4 border-l-4 border-orange-500">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-white font-semibold">
+                📍 {dayNames[selectedDay]} {selectedHour}:00 - {selectedHour + 1}:00
+              </h4>
+              <button
+                onClick={() => {
+                  setSelectedDay(null)
+                  setSelectedHour(null)
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {activityMatrix[selectedDay][selectedHour].count > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Atividades neste período */}
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">
+                    Atividades ({activityMatrix[selectedDay][selectedHour].count}):
+                  </p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {Object.entries(activityMatrix[selectedDay][selectedHour].types)
+                      .sort(([,a], [,b]) => b - a)
+                      .map(([type, count]) => (
+                        <div key={type} className="flex justify-between text-xs">
+                          <span className="text-gray-300">
+                            {type === 'status_change' && '🔄 Status'}
+                            {type === 'world_change' && '🌍 Mundos'}
+                            {type === 'avatar_change' && '👤 Avatars'}
+                            {type === 'description_change' && '📝 Descrição'}
+                            {type === 'bio_change' && '📄 Bio'}
+                            {type === 'came_online' && '✅ Online'}
+                            {type === 'went_offline' && '😴 Offline'}
+                            {type === 'joined_private' && '🔒 Privado'}
+                          </span>
+                          <span className="text-white font-medium">{count}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+                
+                {/* Amigos ativos */}
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">Amigos ativos:</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {[...new Set(activityMatrix[selectedDay][selectedHour].logs.map(log => log.friendName))]
+                      .slice(0, 8)
+                      .map((friendName, index) => (
+                        <div key={index} className="flex items-center space-x-2 text-xs">
+                          <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                          <span className="text-gray-300">{friendName}</span>
+                          <span className="text-gray-500">
+                            ({activityMatrix[selectedDay][selectedHour].logs.filter(log => log.friendName === friendName).length})
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm">Nenhuma atividade registrada neste período.</p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Função para exportar logs de atividade
+  const NetworkVisualization = ({ logs }) => {
+    const [selectedFriend, setSelectedFriend] = useState(null)
+    
+    // Agrupar logs por amigo
+    const friendNodes = logs.reduce((acc, log) => {
+      if (!acc[log.friendId]) {
+        acc[log.friendId] = {
+          id: log.friendId,
+          name: log.friendName,
+          avatar: log.friendAvatar,
+          logs: [],
+          types: {},
+          connections: new Set()
+        }
+      }
+      
+      acc[log.friendId].logs.push(log)
+      acc[log.friendId].types[log.type] = (acc[log.friendId].types[log.type] || 0) + 1
+      
+      return acc
+    }, {})
+    
+    // Criar conexões baseadas em atividades simultâneas ou relacionadas
+    Object.values(friendNodes).forEach(friend => {
+      friend.logs.forEach(log => {
+        // Encontrar atividades similares de outros amigos no mesmo período (±30 min)
+        const timeWindow = 30 * 60 * 1000 // 30 minutos
+        const logTime = new Date(log.timestamp).getTime()
+        
+        Object.values(friendNodes).forEach(otherFriend => {
+          if (friend.id !== otherFriend.id) {
+            const hasRelatedActivity = otherFriend.logs.some(otherLog => {
+              const otherTime = new Date(otherLog.timestamp).getTime()
+              return Math.abs(logTime - otherTime) < timeWindow && 
+                     (otherLog.type === log.type || 
+                      (log.type === 'world_change' && otherLog.type === 'world_change' && 
+                       log.details?.toWorld === otherLog.details?.toWorld))
+            })
+            
+            if (hasRelatedActivity) {
+              friend.connections.add(otherFriend.id)
+            }
+          }
+        })
+      })
+    })
+    
+    const friends = Object.values(friendNodes)
+    
+    // Calcular posições em círculo
+    const centerX = 200
+    const centerY = 200
+    const radius = 150
+    
+    const getPosition = (index, total) => {
+      const angle = (index / total) * 2 * Math.PI
+      return {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+      }
+    }
+    
+    // Obter cor dominante
+    const getDominantColor = (types) => {
+      const dominant = Object.entries(types).reduce((a, b) => types[a[0]] > types[b[0]] ? a : b)
+      const colorMap = {
+        'status_change': '#F59E0B',
+        'world_change': '#10B981',
+        'avatar_change': '#EC4899',
+        'description_change': '#3B82F6',
+        'bio_change': '#8B5CF6',
+        'came_online': '#059669',
+        'went_offline': '#DC2626',
+        'joined_private': '#6366F1'
+      }
+      return colorMap[dominant[0]] || '#6B7280'
+    }
+    
+    return (
+      <div className="relative">
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-sm text-gray-400">
+            🌐 {friends.length} amigos conectados • {logs.length} atividades
+          </div>
+          <button
+            onClick={() => setSelectedFriend(null)}
+            className={`px-3 py-1 rounded text-xs transition-colors ${
+              selectedFriend ? 'bg-red-600 text-white' : 'bg-gray-600 text-gray-400'
+            }`}
+            disabled={!selectedFriend}
+          >
+            🔄 Resetar seleção
+          </button>
+        </div>
+        
+        {/* SVG Network */}
+        <div className="bg-gray-900 rounded-xl p-4" style={{ height: '500px' }}>
+          <svg width="100%" height="100%" viewBox="0 0 400 400" className="overflow-visible">
+            {/* Conexões */}
+            {friends.map((friend, index) => {
+              const pos = getPosition(index, friends.length)
+              
+              return Array.from(friend.connections).map(connectionId => {
+                const connectedFriend = friends.find(f => f.id === connectionId)
+                if (!connectedFriend) return null
+                
+                const connectedIndex = friends.indexOf(connectedFriend)
+                const connectedPos = getPosition(connectedIndex, friends.length)
+                
+                return (
+                  <line
+                    key={`${friend.id}-${connectionId}`}
+                    x1={pos.x}
+                    y1={pos.y}
+                    x2={connectedPos.x}
+                    y2={connectedPos.y}
+                    stroke="rgba(139, 92, 246, 0.3)"
+                    strokeWidth={selectedFriend === friend.id || selectedFriend === connectionId ? "2" : "1"}
+                    className="transition-all duration-300"
+                  />
+                )
+              })
+            })}
+            
+            {/* Nós dos amigos */}
+            {friends.map((friend, index) => {
+              const pos = getPosition(index, friends.length)
+              const isSelected = selectedFriend === friend.id
+              const nodeSize = Math.min(20 + friend.logs.length * 2, 40)
+              
+              return (
+                <g key={friend.id}>
+                  {/* Círculo de fundo */}
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={nodeSize}
+                    fill={getDominantColor(friend.types)}
+                    stroke={isSelected ? "#F59E0B" : "transparent"}
+                    strokeWidth={isSelected ? "3" : "0"}
+                    className="cursor-pointer transition-all duration-300 hover:stroke-white hover:stroke-2"
+                    onClick={() => setSelectedFriend(isSelected ? null : friend.id)}
+                  />
+                  
+                  {/* Avatar (simulado) */}
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={nodeSize - 4}
+                    fill="url(#avatar-pattern)"
+                    className="cursor-pointer"
+                    onClick={() => setSelectedFriend(isSelected ? null : friend.id)}
+                  />
+                  
+                  {/* Contador de atividades */}
+                  <circle
+                    cx={pos.x + nodeSize - 8}
+                    cy={pos.y - nodeSize + 8}
+                    r="8"
+                    fill="#1F2937"
+                    stroke="#374151"
+                    strokeWidth="2"
+                  />
+                  <text
+                    x={pos.x + nodeSize - 8}
+                    y={pos.y - nodeSize + 8}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize="10"
+                    fill="#FFFFFF"
+                    fontWeight="bold"
+                  >
+                    {friend.logs.length}
+                  </text>
+                  
+                  {/* Nome do amigo */}
+                  <text
+                    x={pos.x}
+                    y={pos.y + nodeSize + 15}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill={isSelected ? "#F59E0B" : "#9CA3AF"}
+                    fontWeight={isSelected ? "bold" : "normal"}
+                    className="pointer-events-none"
+                  >
+                    {friend.name.length > 12 ? friend.name.substring(0, 12) + '...' : friend.name}
+                  </text>
+                </g>
+              )
+            })}
+            
+            {/* Pattern para avatars */}
+            <defs>
+              <pattern id="avatar-pattern" patternUnits="objectBoundingBox" width="1" height="1">
+                <rect width="1" height="1" fill="#374151"/>
+                <circle cx="0.5" cy="0.35" r="0.2" fill="#6B7280"/>
+                <ellipse cx="0.5" cy="0.8" rx="0.35" ry="0.3" fill="#6B7280"/>
+              </pattern>
+            </defs>
+          </svg>
+        </div>
+        
+        {/* Detalhes do amigo selecionado */}
+        {selectedFriend && friendNodes[selectedFriend] && (
+          <div className="mt-6 bg-gray-700 rounded-xl p-4 border-l-4 border-orange-500">
+            <div className="flex items-center space-x-3 mb-4">
+              <img
+                src={friendNodes[selectedFriend].avatar}
+                alt={friendNodes[selectedFriend].name}
+                className="w-12 h-12 rounded-full object-cover bg-gray-600"
+                onError={(e) => {
+                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjMzc0MTUxIiByeD0iMjQiLz48cGF0aCBkPSJNMjQgMTJDMTguNDggMTIgMTQgMTYuNDggMTQgMjJTMTguNDggMzIgMjQgMzJTMzQgMjcuNTIgMzQgMjJTMjkuNTIgMTIgMjQgMTJaTTI0IDI2QzIwLjY4IDI2IDE4IDIzLjMyIDE4IDIwUzIwLjY4IDE0IDI0IDE0UzMwIDIwLjY4IDMwIDIwUzI3LjMyIDI2IDI0IDI2WiIgZmlsbD0iIzZCNzI4MCIvPjwvc3ZnPg=='
+                }}
+              />
+              <div>
+                <h4 className="text-white font-semibold">{friendNodes[selectedFriend].name}</h4>
+                <p className="text-sm text-gray-400">{friendNodes[selectedFriend].logs.length} atividades</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Tipos de atividade */}
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Distribuição de atividades:</p>
+                <div className="space-y-2">
+                  {Object.entries(friendNodes[selectedFriend].types)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([type, count]) => (
+                      <div key={type} className="flex items-center justify-between">
+                        <span className="text-xs text-gray-300">
+                          {type === 'status_change' && '🔄 Status'}
+                          {type === 'world_change' && '🌍 Mundos'}
+                          {type === 'avatar_change' && '👤 Avatars'}
+                          {type === 'description_change' && '📝 Descrição'}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-16 bg-gray-600 rounded-full h-2">
+                            <div 
+                              className="h-2 bg-orange-500 rounded-full"
+                              style={{ width: `${(count / friendNodes[selectedFriend].logs.length) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-white font-medium w-6">{count}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              
+              {/* Conexões */}
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Conectado com:</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {Array.from(friendNodes[selectedFriend].connections)
+                    .map(connectionId => friends.find(f => f.id === connectionId))
+                    .filter(Boolean)
+                    .slice(0, 6)
+                    .map((connectedFriend, index) => (
+                      <div key={index} className="flex items-center space-x-2 text-xs">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <span className="text-gray-300">{connectedFriend.name}</span>
+                      </div>
+                    ))}
+                  {friendNodes[selectedFriend].connections.size === 0 && (
+                    <span className="text-xs text-gray-500">Nenhuma conexão detectada</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+  const FlowMapVisualization = ({ logs }) => {
+    const [selectedNode, setSelectedNode] = useState(null)
+    
+    // Agrupar logs por hora para criar nós temporais
+    const timeNodes = logs.reduce((acc, log) => {
+      const hour = new Date(log.timestamp).getHours()
+      const timeKey = `${hour}:00`
+      
+      if (!acc[timeKey]) {
+        acc[timeKey] = {
+          time: timeKey,
+          hour: hour,
+          logs: [],
+          count: 0,
+          types: {}
+        }
+      }
+      
+      acc[timeKey].logs.push(log)
+      acc[timeKey].count++
+      acc[timeKey].types[log.type] = (acc[timeKey].types[log.type] || 0) + 1
+      
+      return acc
+    }, {})
+    
+    const sortedNodes = Object.values(timeNodes).sort((a, b) => a.hour - b.hour)
+    
+    // Função para obter cor baseada no tipo de atividade dominante
+    const getNodeColor = (types) => {
+      const dominant = Object.entries(types).reduce((a, b) => types[a[0]] > types[b[0]] ? a : b)
+      const colorMap = {
+        'status_change': 'bg-yellow-500',
+        'world_change': 'bg-green-500',
+        'avatar_change': 'bg-pink-500',
+        'description_change': 'bg-blue-500',
+        'bio_change': 'bg-purple-500',
+        'came_online': 'bg-emerald-500',
+        'went_offline': 'bg-red-500',
+        'joined_private': 'bg-indigo-500'
+      }
+      return colorMap[dominant[0]] || 'bg-gray-500'
+    }
+    
+    // Função para obter tamanho do nó baseado na quantidade de atividades
+    const getNodeSize = (count) => {
+      if (count >= 10) return 'w-16 h-16'
+      if (count >= 5) return 'w-12 h-12'
+      if (count >= 2) return 'w-10 h-10'
+      return 'w-8 h-8'
+    }
+    
+    return (
+      <div className="relative">
+        {/* Cabeçalho do Flow Map */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-sm text-gray-400">
+            📍 {sortedNodes.length} nós temporais • {logs.length} atividades
+          </div>
+          <div className="flex items-center space-x-4 text-xs">
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span className="text-gray-400">Status</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-gray-400">Mundos</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-pink-500 rounded-full"></div>
+              <span className="text-gray-400">Avatars</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="text-gray-400">Perfil</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Container do Fluxo */}
+        <div className="relative overflow-x-auto" style={{ minHeight: '400px' }}>
+          {/* Linha temporal de fundo */}
+          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-600 via-blue-500 to-green-500 transform -translate-y-1/2"></div>
+          
+          {/* Grid de 24 horas */}
+          <div className="relative flex items-center justify-between" style={{ minWidth: '1200px', height: '400px' }}>
+            {Array.from({ length: 24 }, (_, i) => (
+              <div key={i} className="flex flex-col items-center relative">
+                {/* Linha de hora */}
+                <div className="absolute top-0 w-px h-full bg-gray-700 opacity-30"></div>
+                
+                {/* Label da hora */}
+                <div className="text-xs text-gray-500 mb-2">{i}:00</div>
+                
+                {/* Nó de atividade (se existir) */}
+                {timeNodes[`${i}:00`] && (
+                  <div
+                    className={`relative cursor-pointer transform transition-all duration-300 hover:scale-110 ${
+                      getNodeSize(timeNodes[`${i}:00`].count)
+                    } ${getNodeColor(timeNodes[`${i}:00`].types)} rounded-full shadow-lg flex items-center justify-center`}
+                    style={{
+                      marginTop: '50px',
+                      boxShadow: selectedNode === `${i}:00` ? '0 0 20px rgba(139, 92, 246, 0.6)' : '0 4px 15px rgba(0, 0, 0, 0.3)'
+                    }}
+                    onClick={() => setSelectedNode(selectedNode === `${i}:00` ? null : `${i}:00`)}
+                  >
+                    {/* Contador de atividades */}
+                    <span className="text-white font-bold text-xs">
+                      {timeNodes[`${i}:00`].count}
+                    </span>
+                    
+                    {/* Pulso animado para alta atividade */}
+                    {timeNodes[`${i}:00`].count >= 5 && (
+                      <div className={`absolute inset-0 ${getNodeColor(timeNodes[`${i}:00`].types)} rounded-full animate-ping opacity-20`}></div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Conexões entre nós */}
+                {timeNodes[`${i}:00`] && timeNodes[`${i + 1}:00`] && (
+                  <div className="absolute top-1/2 left-full w-8 h-0.5 bg-gradient-to-r from-current to-transparent opacity-60 transform -translate-y-1/2"></div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Modal de detalhes do nó selecionado */}
+        {selectedNode && timeNodes[selectedNode] && (
+          <div className="mt-6 bg-gray-700 rounded-xl p-4 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-white font-semibold">🕐 {selectedNode}</h4>
+              <button
+                onClick={() => setSelectedNode(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Estatísticas do período */}
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Estatísticas:</p>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Total de atividades:</span>
+                    <span className="text-white font-medium">{timeNodes[selectedNode].count}</span>
+                  </div>
+                  {Object.entries(timeNodes[selectedNode].types).map(([type, count]) => (
+                    <div key={type} className="flex justify-between">
+                      <span className="text-gray-300">
+                        {type === 'status_change' && '🔄 Status'}
+                        {type === 'world_change' && '🌍 Mundos'}
+                        {type === 'avatar_change' && '👤 Avatars'}
+                        {type === 'description_change' && '📝 Descrição'}
+                        {type === 'bio_change' && '📄 Bio'}
+                        {type === 'came_online' && '✅ Online'}
+                        {type === 'went_offline' && '😴 Offline'}
+                        {type === 'joined_private' && '🔒 Privado'}
+                      </span>
+                      <span className="text-white font-medium">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Amigos ativos no período */}
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Amigos ativos:</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {[...new Set(timeNodes[selectedNode].logs.map(log => log.friendName))]
+                    .slice(0, 8)
+                    .map((friendName, index) => (
+                      <div key={index} className="flex items-center space-x-2 text-xs">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span className="text-gray-300">{friendName}</span>
+                        <span className="text-gray-500">
+                          ({timeNodes[selectedNode].logs.filter(log => log.friendName === friendName).length})
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+  const exportActivityLogs = () => {
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      totalLogs: activityLogs.length,
+      summary: {
+        statusChanges: activityLogs.filter(log => log.type === 'status_change').length,
+        worldChanges: activityLogs.filter(log => ['world_change', 'came_online', 'went_offline', 'joined_private'].includes(log.type)).length,
+        avatarChanges: activityLogs.filter(log => ['avatar_change', 'current_avatar_change'].includes(log.type)).length,
+        profileChanges: activityLogs.filter(log => ['description_change', 'bio_change', 'profile_picture_change', 'tags_change'].includes(log.type)).length,
+      },
+      logs: activityLogs.map(log => ({
+        ...log,
+        friendName: log.friendName,
+        type: log.type,
+        priority: log.priority,
+        timestamp: log.timestamp,
+        details: log.details,
+        context: log.details?.context
+      }))
+    }
+    
+    const dataStr = JSON.stringify(exportData, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `vrchat-activity-logs-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+  const detectFriendChanges = (newFriends) => {
+    if (!newFriends || !Array.isArray(newFriends) || newFriends.length === 0) return
+    
+    const now = new Date()
+    const newLogs = []
+    
+    newFriends.forEach(friend => {
+      const friendId = friend.id
+      const previousState = friendsHistory.get(friendId)
+      
+      if (!previousState) {
+        // Primeiro carregamento do amigo - registrar estado inicial
+        friendsHistory.set(friendId, {
+          status: friend.status,
+          location: friend.location,
+          worldName: parseWorldLocation(friend.location),
+          avatarImageUrl: friend.userIcon,
+          displayName: friend.displayName,
+          statusDescription: friend.statusDescription || '',
+          bio: friend.bio || '',
+          profilePicOverride: friend.profilePicOverride || '',
+          currentAvatarImageUrl: friend.currentAvatarImageUrl || '',
+          currentAvatarThumbnailImageUrl: friend.currentAvatarThumbnailImageUrl || '',
+          tags: friend.tags || [],
+          developerType: friend.developerType || 'none',
+          lastSeen: friend.last_login,
+          lastActivity: friend.last_activity,
+          dateJoined: friend.date_joined,
+          isFriend: friend.isFriend,
+          friendKey: friend.friendKey,
+          timestamp: now
+        })
+        
+        // Log de primeiro registro (apenas para debug)
+        console.log(`📝 Primeira detecção do amigo: ${friend.displayName}`)
+        return
+      }
+      
+      // 🔍 INVESTIGAÇÃO DETALHADA - Detectar TODAS as mudanças possíveis
+      
+      // 1. Mudanças de STATUS
+      if (previousState.status !== friend.status) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_status`,
+          type: 'status_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'high',
+          details: {
+            from: previousState.status,
+            to: friend.status,
+            timestamp: now.toISOString(),
+            context: 'Status do usuário alterado'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 2. Mudanças de DESCRIÇÃO/STATUS MESSAGE
+      if (previousState.statusDescription !== (friend.statusDescription || '')) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_description`,
+          type: 'description_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'medium',
+          details: {
+            from: previousState.statusDescription,
+            to: friend.statusDescription || '',
+            timestamp: now.toISOString(),
+            context: 'Mensagem de status personalizada alterada'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 3. Mudanças de BIO/PERFIL
+      if (previousState.bio !== (friend.bio || '')) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_bio`,
+          type: 'bio_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'low',
+          details: {
+            from: previousState.bio,
+            to: friend.bio || '',
+            timestamp: now.toISOString(),
+            context: 'Biografia do perfil alterada'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 4. Mudanças de MUNDO/LOCALIZAÇÃO (detalhada)
+      const currentWorldName = parseWorldLocation(friend.location)
+      if (previousState.location !== friend.location || previousState.worldName !== currentWorldName) {
+        let changeType = 'world_change'
+        let context = 'Mudança de localização detectada'
+        
+        if (friend.location?.includes('offline')) {
+          changeType = 'went_offline'
+          context = 'Usuário ficou offline'
+        } else if (friend.location?.includes('private')) {
+          changeType = 'joined_private'
+          context = 'Entrou em mundo privado'
+        } else if (previousState.location?.includes('offline') && !friend.location?.includes('offline')) {
+          changeType = 'came_online'
+          context = 'Usuário ficou online'
+        }
+        
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_location`,
+          type: changeType,
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'high',
+          details: {
+            fromWorld: previousState.worldName,
+            toWorld: currentWorldName,
+            fromLocation: previousState.location,
+            toLocation: friend.location,
+            worldId: friend.location?.split(':')[0] || 'unknown',
+            instanceInfo: friend.location?.split(':')[1] || '',
+            timestamp: now.toISOString(),
+            context: context
+          },
+          timestamp: now
+        })
+      }
+      
+      // 5. Mudanças de AVATAR PRINCIPAL
+      if (previousState.avatarImageUrl !== friend.userIcon) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_avatar_main`,
+          type: 'avatar_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'medium',
+          details: {
+            fromAvatar: previousState.avatarImageUrl,
+            toAvatar: friend.userIcon,
+            timestamp: now.toISOString(),
+            context: 'Avatar principal alterado'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 6. Mudanças de AVATAR ATUAL EM MUNDO
+      if (previousState.currentAvatarImageUrl !== (friend.currentAvatarImageUrl || '')) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_avatar_current`,
+          type: 'current_avatar_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'medium',
+          details: {
+            fromAvatar: previousState.currentAvatarImageUrl,
+            toAvatar: friend.currentAvatarImageUrl || '',
+            fromThumbnail: previousState.currentAvatarThumbnailImageUrl,
+            toThumbnail: friend.currentAvatarThumbnailImageUrl || '',
+            timestamp: now.toISOString(),
+            context: 'Avatar atual no mundo alterado'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 7. Mudanças de FOTO DE PERFIL
+      if (previousState.profilePicOverride !== (friend.profilePicOverride || '')) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_profile_pic`,
+          type: 'profile_picture_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'low',
+          details: {
+            fromPicture: previousState.profilePicOverride,
+            toPicture: friend.profilePicOverride || '',
+            timestamp: now.toISOString(),
+            context: 'Foto de perfil personalizada alterada'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 8. Mudanças de TAGS/BADGES
+      const previousTags = JSON.stringify(previousState.tags || [])
+      const currentTags = JSON.stringify(friend.tags || [])
+      if (previousTags !== currentTags) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_tags`,
+          type: 'tags_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'low',
+          details: {
+            fromTags: previousState.tags || [],
+            toTags: friend.tags || [],
+            addedTags: (friend.tags || []).filter(tag => !(previousState.tags || []).includes(tag)),
+            removedTags: (previousState.tags || []).filter(tag => !(friend.tags || []).includes(tag)),
+            timestamp: now.toISOString(),
+            context: 'Tags/badges do perfil alteradas'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 9. Mudanças de TIPO DE DESENVOLVEDOR
+      if (previousState.developerType !== (friend.developerType || 'none')) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_dev_type`,
+          type: 'developer_type_change',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'low',
+          details: {
+            from: previousState.developerType,
+            to: friend.developerType || 'none',
+            timestamp: now.toISOString(),
+            context: 'Tipo de desenvolvedor alterado'
+          },
+          timestamp: now
+        })
+      }
+      
+      // 10. Mudanças de ÚLTIMA ATIVIDADE
+      if (previousState.lastActivity !== friend.last_activity) {
+        newLogs.push({
+          id: `${Date.now()}_${Math.random()}_activity`,
+          type: 'activity_update',
+          friendId: friendId,
+          friendName: friend.displayName,
+          friendAvatar: friend.userIcon,
+          priority: 'low',
+          details: {
+            fromActivity: previousState.lastActivity,
+            toActivity: friend.last_activity,
+            activityGap: friend.last_activity && previousState.lastActivity ? 
+              new Date(friend.last_activity) - new Date(previousState.lastActivity) : null,
+            timestamp: now.toISOString(),
+            context: 'Última atividade atualizada'
+          },
+          timestamp: now
+        })
+      }
+      
+      // Atualizar estado histórico completo
+      friendsHistory.set(friendId, {
+        status: friend.status,
+        location: friend.location,
+        worldName: currentWorldName,
+        avatarImageUrl: friend.userIcon,
+        displayName: friend.displayName,
+        statusDescription: friend.statusDescription || '',
+        bio: friend.bio || '',
+        profilePicOverride: friend.profilePicOverride || '',
+        currentAvatarImageUrl: friend.currentAvatarImageUrl || '',
+        currentAvatarThumbnailImageUrl: friend.currentAvatarThumbnailImageUrl || '',
+        tags: friend.tags || [],
+        developerType: friend.developerType || 'none',
+        lastSeen: friend.last_login,
+        lastActivity: friend.last_activity,
+        dateJoined: friend.date_joined,
+        isFriend: friend.isFriend,
+        friendKey: friend.friendKey,
+        timestamp: now
+      })
+    })
+    
+    // Adicionar novos logs ao início do array (mais recente primeiro)
+    if (newLogs.length > 0) {
+      console.log(`🔍 Detectadas ${newLogs.length} mudanças nos amigos:`, newLogs)
+      setActivityLogs(prev => [...newLogs, ...prev].slice(0, 500)) // Manter 500 logs para análise detalhada
     }
   }
 
@@ -1684,6 +2812,7 @@ const VRChatAPIPage = () => {
               {[
                 { id: 'feed', label: 'Feed', icon: UserIcon },
                 { id: 'worlds', label: 'Mundos', icon: GlobeAltIcon },
+                { id: 'activity', label: 'Atividade dos Amigos', icon: ClockIcon },
                 { id: 'stats', label: 'Estatísticas', icon: ChartBarIcon },
               ].map((item) => {
                 const Icon = item.icon
@@ -1804,253 +2933,423 @@ const VRChatAPIPage = () => {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-6"
                 >
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-white">Análise Detalhada de Mundos</h2>
-                    {dashboardData?.recentWorlds?.mock !== undefined && (
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        dashboardData.recentWorlds.mock 
-                          ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-500/50' 
-                          : 'bg-green-600/30 text-green-300 border border-green-500/50'
-                      }`}>
-                        {dashboardData.recentWorlds.mock ? '📋 Dados Demo' : '🔗 Dados da API'}
+                  <WorldExplorer />
+                </motion.div>
+              )}
+
+              {activeSection === 'activity' && (
+                <motion.div
+                  key="activity"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  {/* Header da Atividade */}
+                  <div className="bg-gray-800 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-bold text-white flex items-center">
+                        <ClockIcon className="w-6 h-6 mr-2 text-orange-400" />
+                        Atividade dos Amigos
+                      </h2>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-sm text-gray-400">
+                          {activityLogs.length} atividades registradas
+                        </span>
+                        <button
+                          onClick={exportActivityLogs}
+                          disabled={activityLogs.length === 0}
+                          className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center"
+                        >
+                          📥 Exportar
+                        </button>
+                        <button
+                          onClick={loadDashboardData}
+                          disabled={loadingDashboard}
+                          className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center"
+                        >
+                          {loadingDashboard ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                              Atualizando...
+                            </>
+                          ) : (
+                            <>
+                              🔄 Atualizar
+                            </>
+                          )}
+                        </button>
                       </div>
+                    </div>
+
+                    {/* Filtros de Atividade */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Tipo de Atividade:</label>
+                        <select
+                          value={activityFilters.type}
+                          onChange={(e) => setActivityFilters(prev => ({ ...prev, type: e.target.value }))}
+                          className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        >
+                          <option value="all">Todas as atividades</option>
+                          <option value="status_change">🔄 Mudanças de status</option>
+                          <option value="description_change">📝 Mudanças de descrição</option>
+                          <option value="bio_change">📄 Mudanças de bio</option>
+                          <option value="world_change">🌍 Mudanças de mundo</option>
+                          <option value="went_offline">😴 Ficou offline</option>
+                          <option value="came_online">✅ Ficou online</option>
+                          <option value="joined_private">🔒 Entrou em privado</option>
+                          <option value="avatar_change">👤 Mudanças de avatar</option>
+                          <option value="current_avatar_change">🎭 Avatar atual alterado</option>
+                          <option value="profile_picture_change">🖼️ Foto de perfil</option>
+                          <option value="tags_change">🏷️ Tags/badges alteradas</option>
+                          <option value="developer_type_change">💻 Tipo desenvolvedor</option>
+                          <option value="activity_update">⏰ Atividade atualizada</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Amigo:</label>
+                        <select
+                          value={activityFilters.friend}
+                          onChange={(e) => setActivityFilters(prev => ({ ...prev, friend: e.target.value }))}
+                          className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        >
+                          <option value="all">Todos os amigos</option>
+                          {dashboardData?.friends?.friends?.map(friend => (
+                            <option key={friend.id} value={friend.id}>
+                              {friend.displayName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Período:</label>
+                        <select
+                          value={activityFilters.timeRange}
+                          onChange={(e) => setActivityFilters(prev => ({ ...prev, timeRange: e.target.value }))}
+                          className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        >
+                          <option value="all">Todo o período</option>
+                          <option value="today">Hoje</option>
+                          <option value="week">Última semana</option>
+                          <option value="month">Último mês</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Controles de Visualização */}
+                  <div className="bg-gray-800 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-white flex items-center">
+                        🎛️ Modo de Visualização
+                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'timeline' }))}
+                          className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                            activityFilters.viewMode === 'timeline' 
+                              ? 'bg-orange-600 text-white' 
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          📋 Lista Timeline
+                        </button>
+                        <button
+                          onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'flowmap' }))}
+                          className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                            activityFilters.viewMode === 'flowmap' 
+                              ? 'bg-purple-600 text-white' 
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          🗺️ Mapa de Fluxo
+                        </button>
+                        <button
+                          onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'network' }))}
+                          className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                            activityFilters.viewMode === 'network' 
+                              ? 'bg-cyan-600 text-white' 
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          🌐 Rede Neural
+                        </button>
+                        <button
+                          onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'heatmap' }))}
+                          className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                            activityFilters.viewMode === 'heatmap' 
+                              ? 'bg-green-600 text-white' 
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          🔥 Mapa de Calor
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Visualização de Atividades */}
+                  <div className="bg-gray-800 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                      {activityFilters.viewMode === 'timeline' && '📅 Timeline de Atividades'}
+                      {activityFilters.viewMode === 'flowmap' && '🗺️ Mapa de Fluxo Temporal'}
+                      {activityFilters.viewMode === 'network' && '🌐 Rede Neural de Atividades'}
+                      {activityFilters.viewMode === 'heatmap' && '🔥 Mapa de Calor de Atividades'}
+                    </h3>
+                    
+                    {activityLogs.length === 0 ? (
+                      <div className="text-center py-8">
+                        <ClockIcon className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                        <p className="text-gray-400">Nenhuma atividade registrada ainda.</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          As atividades dos amigos aparecerão aqui conforme eles mudam de status, mundo ou avatar.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Timeline Tradicional */}
+                        {activityFilters.viewMode === 'timeline' && (
+                          <div className="space-y-4 max-h-96 overflow-y-auto">
+                            {activityLogs
+                              .filter(log => {
+                                // Filtrar por tipo
+                                if (activityFilters.type !== 'all' && log.type !== activityFilters.type) return false
+                                
+                                // Filtrar por amigo
+                                if (activityFilters.friend !== 'all' && log.friendId !== activityFilters.friend) return false
+                                
+                                // Filtrar por período
+                                if (activityFilters.timeRange !== 'all') {
+                                  const logDate = new Date(log.timestamp)
+                                  const now = new Date()
+                                  
+                                  switch (activityFilters.timeRange) {
+                                    case 'today':
+                                      return logDate.toDateString() === now.toDateString()
+                                    case 'week':
+                                      return (now - logDate) <= 7 * 24 * 60 * 60 * 1000
+                                    case 'month':
+                                      return (now - logDate) <= 30 * 24 * 60 * 60 * 1000
+                                    default:
+                                      return true
+                                  }
+                                }
+                                
+                                return true
+                              })
+                              .map((log) => (
+                                <div key={log.id} className="flex items-start space-x-3 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+                                  <img
+                                    src={log.friendAvatar}
+                                    alt={log.friendName}
+                                    className="w-10 h-10 rounded-full object-cover bg-gray-600 flex-shrink-0"
+                                    onError={(e) => {
+                                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMzc0MTUxIiByeD0iMjAiLz48cGF0aCBkPSJNMjAgMTBDMTUuNTggMTAgMTIgMTMuNTggMTIgMTggUzE1LjU4IDI2IDIwIDI2UzI4IDIyLjQyIDI4IDE4UzI0LjQyIDEwIDIwIDEwWk0yMCAyMkMxNy43OSAyMiAxNiAyMC4yMSAxNiAxOFMxNy43OSAxNCAyMCAxNFMyNCAyMy43OSAyNCAxOFMyMi4yMSAyMiAyMCAyMloiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
+                                    }}
+                                  />
+                                  {/* Conteúdo detalhado que já existe */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-white font-medium">{log.friendName}</p>
+                                      <div className="flex items-center space-x-2">
+                                        {log.priority === 'high' && <span className="text-red-400 text-xs">🔴 Alto</span>}
+                                        {log.priority === 'medium' && <span className="text-yellow-400 text-xs">🟡 Médio</span>}
+                                        {log.priority === 'low' && <span className="text-gray-400 text-xs">⚪ Baixo</span>}
+                                        <span className="text-xs text-gray-400">
+                                          {new Date(log.timestamp).toLocaleString('pt-BR')}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="mt-1">
+                                      {/* Todo o conteúdo detalhado que já implementamos */}
+                                      {log.type === 'status_change' && (
+                                        <div className="space-y-1">
+                                          <p className="text-sm text-gray-300">
+                                            🔄 <span className="text-yellow-400">{log.details.from}</span> → <span className="text-green-400">{log.details.to}</span>
+                                          </p>
+                                          <p className="text-xs text-gray-500">{log.details.context}</p>
+                                        </div>
+                                      )}
+                                      {/* Outros tipos de log continuam... */}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+
+                        {/* Mapa de Fluxo Temporal */}
+                        {activityFilters.viewMode === 'flowmap' && (
+                          <FlowMapVisualization 
+                            logs={activityLogs.filter(log => {
+                              if (activityFilters.type !== 'all' && log.type !== activityFilters.type) return false
+                              if (activityFilters.friend !== 'all' && log.friendId !== activityFilters.friend) return false
+                              return true
+                            })} 
+                          />
+                        )}
+
+                        {/* Rede Neural de Atividades */}
+                        {activityFilters.viewMode === 'network' && (
+                          <NetworkVisualization 
+                            logs={activityLogs.filter(log => {
+                              if (activityFilters.type !== 'all' && log.type !== activityFilters.type) return false
+                              if (activityFilters.friend !== 'all' && log.friendId !== activityFilters.friend) return false
+                              return true
+                            })} 
+                          />
+                        )}
+
+                        {/* Mapa de Calor */}
+                        {activityFilters.viewMode === 'heatmap' && (
+                          <HeatmapVisualization 
+                            logs={activityLogs.filter(log => {
+                              if (activityFilters.type !== 'all' && log.type !== activityFilters.type) return false
+                              if (activityFilters.friend !== 'all' && log.friendId !== activityFilters.friend) return false
+                              return true
+                            })} 
+                          />
+                        )}
+                      </>
                     )}
                   </div>
-                  
-                  {dashboardData?.friends?.friends ? (() => {
-                    const worldsAnalysis = getWorldsAnalysis(dashboardData.friends.friends, dashboardData.recentWorlds)
-                    
-                    return (
-                      <div className="space-y-6">
-                        {/* Estatísticas Gerais de Mundos */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-gray-800 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-gray-400">Mundos Ativos</p>
-                                <p className="text-2xl font-bold text-green-400">{worldsAnalysis.uniqueActiveWorlds}</p>
-                              </div>
-                              <GlobeAltIcon className="w-8 h-8 text-green-400" />
-                            </div>
-                          </div>
-                          
-                          <div className="bg-gray-800 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-gray-400">Instâncias Ativas</p>
-                                <p className="text-2xl font-bold text-blue-400">{worldsAnalysis.totalActiveInstances}</p>
-                              </div>
-                              <MapIcon className="w-8 h-8 text-blue-400" />
-                            </div>
-                          </div>
-                          
-                          <div className="bg-gray-800 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-gray-400">Mundos Populares</p>
-                                <p className="text-2xl font-bold text-purple-400">{worldsAnalysis.worldsWithMultipleFriends}</p>
-                              </div>
-                              <HeartIcon className="w-8 h-8 text-purple-400" />
-                            </div>
-                          </div>
-                          
-                          <div className="bg-gray-800 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-gray-400">Mundos Recentes</p>
-                                <p className="text-2xl font-bold text-cyan-400">{worldsAnalysis.recentWorlds?.length || 0}</p>
-                              </div>
-                              <ClockIcon className="w-8 h-8 text-cyan-400" />
-                            </div>
-                          </div>
+
+                  {/* Estatísticas de Atividade Detalhadas */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div className="bg-gray-800 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-400">Total</p>
+                          <p className="text-2xl font-bold text-white">{activityLogs.length}</p>
                         </div>
-
-                        {/* Tipos de Instância */}
-                        <div className="bg-gray-800 rounded-xl p-6">
-                          <h3 className="text-white font-semibold mb-4 flex items-center">
-                            <ShieldCheckIcon className="w-5 h-5 mr-2 text-yellow-400" />
-                            Tipos de Instância
-                          </h3>
-                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div className="text-center">
-                              <div className="w-8 h-8 bg-green-500 rounded-full mx-auto mb-2"></div>
-                              <p className="text-sm text-gray-400">Público</p>
-                              <p className="text-lg font-bold text-green-400">{worldsAnalysis.instanceTypes.public}</p>
-                            </div>
-                            <div className="text-center">
-                              <div className="w-8 h-8 bg-blue-500 rounded-full mx-auto mb-2"></div>
-                              <p className="text-sm text-gray-400">Amigos</p>
-                              <p className="text-lg font-bold text-blue-400">{worldsAnalysis.instanceTypes.friendsOnly}</p>
-                            </div>
-                            <div className="text-center">
-                              <div className="w-8 h-8 bg-purple-500 rounded-full mx-auto mb-2"></div>
-                              <p className="text-sm text-gray-400">Amigos+</p>
-                              <p className="text-lg font-bold text-purple-400">{worldsAnalysis.instanceTypes.friendsOfGuests}</p>
-                            </div>
-                            <div className="text-center">
-                              <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2"></div>
-                              <p className="text-sm text-gray-400">Convite</p>
-                              <p className="text-lg font-bold text-red-400">{worldsAnalysis.instanceTypes.inviteOnly}</p>
-                            </div>
-                            <div className="text-center">
-                              <div className="w-8 h-8 bg-orange-500 rounded-full mx-auto mb-2"></div>
-                              <p className="text-sm text-gray-400">Grupo</p>
-                              <p className="text-lg font-bold text-orange-400">{worldsAnalysis.instanceTypes.group}</p>
-                            </div>
-                          </div>
+                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                          📊
                         </div>
-
-                        {/* Mundos Mais Ativos (onde estão os amigos) */}
-                        {worldsAnalysis.activeWorlds.length > 0 && (
-                          <div className="bg-gray-800 rounded-xl p-6">
-                            <h3 className="text-white font-semibold mb-4 flex items-center">
-                              <BoltIcon className="w-5 h-5 mr-2 text-green-400" />
-                              Mundos Mais Ativos Agora
-                            </h3>
-                            <div className="space-y-3">
-                              {worldsAnalysis.activeWorlds.slice(0, 5).map((world, index) => (
-                                <div key={world.worldId} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                                  <div className="flex items-center space-x-3">
-                                    <div className="flex-shrink-0">
-                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${
-                                        index === 0 ? 'bg-yellow-500' : 
-                                        index === 1 ? 'bg-gray-400' : 
-                                        index === 2 ? 'bg-orange-500' : 'bg-gray-600'
-                                      }`}>
-                                        {index + 1}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <p className="text-white font-medium">{world.worldName}</p>
-                                      <p className="text-sm text-gray-400">
-                                        {world.instanceCount} instância{world.instanceCount > 1 ? 's' : ''} • 
-                                        {world.instanceTypes.join(', ')}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-lg font-bold text-green-400">{world.totalFriends}</p>
-                                    <p className="text-xs text-gray-400">amigos</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Mundos Visitados Recentemente */}
-                        {worldsAnalysis.recentWorlds && worldsAnalysis.recentWorlds.length > 0 && (
-                          <div className="bg-gray-800 rounded-xl p-6">
-                            <h3 className="text-white font-semibold mb-4 flex items-center">
-                              <ClockIcon className="w-5 h-5 mr-2 text-cyan-400" />
-                              Mundos Visitados Recentemente
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {worldsAnalysis.recentWorlds.slice(0, 6).map((world, index) => (
-                                <div key={world.id || index} className="bg-gray-700/50 rounded-lg p-4">
-                                  <div className="space-y-3">
-                                    {world.imageUrl && (
-                                      <div className="aspect-video bg-gray-600 rounded-lg overflow-hidden">
-                                        <img 
-                                          src={world.imageUrl} 
-                                          alt={world.name}
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => {
-                                            e.target.style.display = 'none'
-                                          }}
-                                        />
-                                      </div>
-                                    )}
-                                    <div>
-                                      <h4 className="text-white font-medium text-sm line-clamp-2">{world.name}</h4>
-                                      <p className="text-xs text-gray-400 mt-1">por {world.authorName}</p>
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs text-gray-400">
-                                      <span>👥 {world.capacity || 0}</span>
-                                      <span>❤️ {world.favorites || 0}</span>
-                                      <span>👁️ {world.visits || 0}</span>
-                                    </div>
-                                    {world.tags && world.tags.length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {world.tags.slice(0, 3).map((tag, tagIndex) => (
-                                          <span key={tagIndex} className="px-2 py-1 bg-gray-600 text-xs text-gray-300 rounded">
-                                            {tag}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Detalhes dos Amigos por Mundo */}
-                        {worldsAnalysis.popularWorlds.length > 0 && (
-                          <div className="bg-gray-800 rounded-xl p-6">
-                            <h3 className="text-white font-semibold mb-4 flex items-center">
-                              <UserGroupIcon className="w-5 h-5 mr-2 text-blue-400" />
-                              Mundos com Múltiplos Amigos
-                            </h3>
-                            <div className="space-y-4">
-                              {worldsAnalysis.popularWorlds.map((world, index) => (
-                                <div key={world.worldId} className="border border-gray-700 rounded-lg p-4">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <h4 className="text-white font-medium">{world.worldName}</h4>
-                                    <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
-                                      {world.totalFriends} amigos
-                                    </span>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                      <p className="text-sm text-gray-400 mb-2">Amigos neste mundo:</p>
-                                      <div className="space-y-1">
-                                        {world.friends.map((friend, friendIndex) => (
-                                          <div key={friendIndex} className="flex items-center justify-between text-sm">
-                                            <span className="text-gray-300">{friend.name}</span>
-                                            <span className={`px-2 py-1 rounded text-xs ${
-                                              friend.status === 'online' ? 'bg-green-600 text-green-100' :
-                                              friend.status === 'join me' ? 'bg-blue-600 text-blue-100' :
-                                              friend.status === 'busy' ? 'bg-red-600 text-red-100' :
-                                              'bg-gray-600 text-gray-100'
-                                            }`}>
-                                              {friend.status}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-gray-400 mb-2">Instâncias ativas:</p>
-                                      <div className="space-y-1">
-                                        {world.instanceTypes.map((type, typeIndex) => (
-                                          <span key={typeIndex} className={`inline-block px-2 py-1 rounded text-xs mr-2 ${
-                                            type === 'public' ? 'bg-green-600 text-green-100' :
-                                            type === 'friendsOnly' ? 'bg-blue-600 text-blue-100' :
-                                            type === 'friendsOfGuests' ? 'bg-purple-600 text-purple-100' :
-                                            type === 'inviteOnly' ? 'bg-red-600 text-red-100' :
-                                            type === 'group' ? 'bg-orange-600 text-orange-100' :
-                                            'bg-gray-600 text-gray-100'
-                                          }`}>
-                                            {type}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    )
-                  })() : (
-                    <div className="text-center py-8">
-                      <p className="text-gray-400">Carregue os dados dos amigos para ver a análise detalhada de mundos</p>
                     </div>
-                  )}
+
+                    <div className="bg-gray-800 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-400">Status</p>
+                          <p className="text-xl font-bold text-yellow-400">
+                            {activityLogs.filter(log => log.type === 'status_change').length}
+                          </p>
+                        </div>
+                        <div className="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center">
+                          🔄
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-400">Mundos</p>
+                          <p className="text-xl font-bold text-green-400">
+                            {activityLogs.filter(log => ['world_change', 'came_online', 'went_offline', 'joined_private'].includes(log.type)).length}
+                          </p>
+                        </div>
+                        <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                          🌍
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-400">Avatars</p>
+                          <p className="text-xl font-bold text-pink-400">
+                            {activityLogs.filter(log => ['avatar_change', 'current_avatar_change'].includes(log.type)).length}
+                          </p>
+                        </div>
+                        <div className="w-8 h-8 bg-pink-600 rounded-lg flex items-center justify-center">
+                          👤
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-400">Perfil</p>
+                          <p className="text-xl font-bold text-purple-400">
+                            {activityLogs.filter(log => ['description_change', 'bio_change', 'profile_picture_change', 'tags_change'].includes(log.type)).length}
+                          </p>
+                        </div>
+                        <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+                          📝
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Análise de Atividade por Amigo */}
+                  <div className="bg-gray-800 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                      👥 Análise por Amigo (Top 10 mais ativos)
+                    </h3>
+                    <div className="space-y-3">
+                      {Object.entries(
+                        activityLogs.reduce((acc, log) => {
+                          acc[log.friendId] = acc[log.friendId] || {
+                            name: log.friendName,
+                            avatar: log.friendAvatar,
+                            count: 0,
+                            types: {}
+                          }
+                          acc[log.friendId].count++
+                          acc[log.friendId].types[log.type] = (acc[log.friendId].types[log.type] || 0) + 1
+                          return acc
+                        }, {})
+                      )
+                        .sort(([,a], [,b]) => b.count - a.count)
+                        .slice(0, 10)
+                        .map(([friendId, data]) => (
+                          <div key={friendId} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <img
+                                src={data.avatar}
+                                alt={data.name}
+                                className="w-10 h-10 rounded-full object-cover bg-gray-600"
+                                onError={(e) => {
+                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMzc0MTUxIiByeD0iMjAiLz48cGF0aCBkPSJNMjAgMTBDMTUuNTggMTAgMTIgMTMuNTggMTIgMTggUzE1LjU4IDI2IDIwIDI2UzI4IDIyLjQyIDI4IDE4UzI0LjQyIDEwIDIwIDEwWk0yMCAyMkMxNy43OSAyMiAxNiAyMC4yMSAxNiAxOFMxNy43OSAxNCAyMCAxNFMyNCAyMy43OSAyNCAxOFMyMi4yMSAyMiAyMCAyMloiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
+                                }}
+                              />
+                              <div>
+                                <p className="text-white font-medium">{data.name}</p>
+                                <p className="text-sm text-gray-400">{data.count} atividades</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs">
+                              {Object.entries(data.types)
+                                .sort(([,a], [,b]) => b - a)
+                                .slice(0, 3)
+                                .map(([type, count]) => (
+                                  <span key={type} className="bg-gray-600 px-2 py-1 rounded">
+                                    {type === 'status_change' && '🔄'}
+                                    {type === 'world_change' && '🌍'}
+                                    {type === 'avatar_change' && '👤'}
+                                    {type === 'description_change' && '📝'}
+                                    {type === 'bio_change' && '📄'}
+                                    {type === 'current_avatar_change' && '🎭'}
+                                    {type === 'profile_picture_change' && '🖼️'}
+                                    {type === 'tags_change' && '🏷️'}
+                                    {type === 'came_online' && '✅'}
+                                    {type === 'went_offline' && '😴'}
+                                    {type === 'joined_private' && '🔒'}
+                                    {count}
+                                  </span>
+                                ))}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 </motion.div>
               )}
 
@@ -2367,6 +3666,502 @@ const VRChatAPIPage = () => {
         friend={selectedFriend}
         isOpen={showFriendModal}
         onClose={closeFriendModal}
+      />
+    </div>
+  )
+}
+
+// Componente World Explorer - Sistema completo de busca e exploração de mundos
+const WorldExplorer = () => {
+  const { searchWorlds, getFeaturedWorlds, getWorldDetails, getPopularWorlds } = useVRChatAPI()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [sortBy, setSortBy] = useState('popularity')
+  const [loading, setLoading] = useState(false)
+  const [searchResults, setSearchResults] = useState([])
+  const [featuredWorlds, setFeaturedWorlds] = useState([])
+  const [popularWorlds, setPopularWorlds] = useState([])
+  const [selectedWorld, setSelectedWorld] = useState(null)
+  const [showWorldModal, setShowWorldModal] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Função utilitária para formatar números
+  const formatNumber = (num) => {
+    if (!num) return '0'
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
+    return num.toString()
+  }
+
+  // Categorias disponíveis
+  const categories = [
+    { id: 'all', label: 'Todos', icon: GlobeAltIcon },
+    { id: 'social', label: 'Social', icon: UserGroupIcon },
+    { id: 'games', label: 'Jogos', icon: '🎮' },
+    { id: 'art', label: 'Arte', icon: '🎨' },
+    { id: 'music', label: 'Música', icon: '🎵' },
+    { id: 'avatar', label: 'Avatar', icon: UserIcon },
+    { id: 'roleplay', label: 'Roleplay', icon: '🎭' },
+    { id: 'education', label: 'Educação', icon: '📚' }
+  ]
+
+  // Opções de ordenação
+  const sortOptions = [
+    { id: 'popularity', label: 'Popularidade', order: 'descending' },
+    { id: 'created', label: 'Mais Recente', order: 'descending' },
+    { id: 'updated', label: 'Atualizado', order: 'descending' },
+    { id: 'favorites', label: 'Favoritos', order: 'descending' },
+    { id: 'visits', label: 'Visitas', order: 'descending' }
+  ]
+
+  // Carregar dados iniciais
+  useEffect(() => {
+    loadInitialData()
+  }, [])
+
+  // Executar busca quando filtros mudarem
+  useEffect(() => {
+    // Só executa busca automática se não estiver carregando e houver filtros aplicados
+    if (!loading && (selectedCategory !== 'all' || sortBy !== 'popularity')) {
+      const timeoutId = setTimeout(() => {
+        handleSearch(true) // autoSearch = true
+      }, 300) // Debounce de 300ms
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [selectedCategory, sortBy])
+
+  const loadInitialData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      console.log('🔄 Carregando dados iniciais do World Explorer...')
+      
+      const [featured, popular] = await Promise.all([
+        getFeaturedWorlds(),
+        getPopularWorlds()
+      ])
+      
+      console.log('📊 Dados carregados:', { featured, popular })
+      
+      if (featured?.success) {
+        setFeaturedWorlds(featured.data?.worlds || [])
+        console.log('⭐ Mundos em destaque carregados:', featured.data?.worlds?.length || 0)
+      }
+      if (popular?.success) {
+        setPopularWorlds(popular.data?.worlds || [])
+        console.log('🔥 Mundos populares carregados:', popular.data?.worlds?.length || 0)
+      }
+    } catch (err) {
+      console.error('❌ Erro ao carregar dados iniciais:', err)
+      setError('Erro ao carregar mundos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Função de busca
+  const handleSearch = async (autoSearch = false) => {
+    // Permite busca se há query OU se há filtros aplicados
+    if (!autoSearch && !searchQuery.trim() && selectedCategory === 'all') {
+      // Se não há busca manual e nem filtros, limpa resultados
+      setSearchResults([])
+      return
+    }
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const options = {
+        tag: selectedCategory !== 'all' ? selectedCategory : undefined,
+        sort: sortBy,
+        order: sortOptions.find(opt => opt.id === sortBy)?.order || 'descending',
+        n: 24
+      }
+      
+      console.log('🔍 Executando busca:', { query: searchQuery.trim(), options })
+      
+      const result = await searchWorlds(searchQuery.trim() || '', options)
+      
+      console.log('📋 Resultado da busca:', result)
+      
+      if (result.success) {
+        setSearchResults(result.data.worlds || [])
+      } else {
+        setError(result.error || 'Erro na busca')
+        setSearchResults([])
+      }
+    } catch (err) {
+      console.error('Erro na busca:', err)
+      setError('Erro ao buscar mundos')
+      setSearchResults([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Abrir detalhes do mundo
+  const openWorldDetails = async (world) => {
+    setSelectedWorld(world)
+    setShowWorldModal(true)
+    
+    try {
+      const details = await getWorldDetails(world.id)
+      if (details.success) {
+        setSelectedWorld(details.data)
+      }
+    } catch (err) {
+      console.error('Erro ao carregar detalhes:', err)
+    }
+  }
+
+  // Componente de card de mundo
+  const WorldCard = ({ world, featured = false }) => {
+    const totalInstances = world.instances?.length || 0
+    const totalUsers = world.instances?.reduce((sum, instance) => sum + (instance.userCount || 0), 0) || 0
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gray-800 rounded-xl overflow-hidden hover:bg-gray-750 transition-colors cursor-pointer group"
+        onClick={() => openWorldDetails(world)}
+      >
+        {/* Imagem do mundo */}
+        <div className="aspect-video bg-gray-700 relative overflow-hidden">
+          {world.imageUrl ? (
+            <img 
+              src={world.imageUrl} 
+              alt={world.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                e.target.style.display = 'none'
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <PhotoIcon className="w-12 h-12 text-gray-500" />
+            </div>
+          )}
+          
+          {featured && (
+            <div className="absolute top-2 left-2 bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold">
+              ⭐ Destaque
+            </div>
+          )}
+          
+          {/* Indicadores no canto superior direito */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
+            {world.capacity && (
+              <div className="bg-black/70 text-white px-2 py-1 rounded-full text-xs">
+                👥 {world.capacity}
+              </div>
+            )}
+            {totalInstances > 0 && (
+              <div className="bg-green-600/90 text-white px-2 py-1 rounded-full text-xs">
+                🌐 {totalInstances} instância{totalInstances > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+
+          {/* Overlay com informações de instâncias */}
+          {totalUsers > 0 && (
+            <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white px-2 py-1 rounded-full text-xs">
+              👤 {totalUsers} online
+            </div>
+          )}
+        </div>
+        
+        {/* Informações do mundo */}
+        <div className="p-4 space-y-3">
+          <div>
+            <h3 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-blue-300 transition-colors">
+              {world.name}
+            </h3>
+            <p className="text-gray-400 text-xs mt-1">por {world.authorName}</p>
+          </div>
+          
+          {world.description && (
+            <p className="text-gray-300 text-xs line-clamp-2">{world.description}</p>
+          )}
+          
+          {/* Estatísticas melhoradas */}
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center space-x-3">
+              <span className="flex items-center text-red-400">
+                <HeartIcon className="w-3 h-3 mr-1" />
+                {formatNumber(world.favorites || world.favoriteCount || 0)}
+              </span>
+              <span className="flex items-center text-blue-400">
+                <EyeIcon className="w-3 h-3 mr-1" />
+                {formatNumber(world.visits || 0)}
+              </span>
+            </div>
+            <div className="flex items-center text-gray-400">
+              <ClockIcon className="w-3 h-3 mr-1" />
+              {world.updated_at ? new Date(world.updated_at).toLocaleDateString() : 
+               world.publicationDate ? new Date(world.publicationDate).toLocaleDateString() : 'N/A'}
+            </div>
+          </div>
+
+          {/* Indicadores de popularidade */}
+          {(world.popularity || world.heat) && (
+            <div className="flex items-center justify-between text-xs">
+              {world.popularity && (
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                  <span className="text-yellow-400">Popular: {world.popularity}%</span>
+                </div>
+              )}
+              {world.heat && (
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                  <span className="text-red-400">Heat: {world.heat}%</span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Tags */}
+          {world.tags && world.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {world.tags.slice(0, 3).map((tag, index) => (
+                <span key={index} className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded hover:bg-gray-600 transition-colors">
+                  {tag}
+                </span>
+              ))}
+              {world.tags.length > 3 && (
+                <span className="px-2 py-1 bg-gray-600 text-gray-400 text-xs rounded">
+                  +{world.tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Plataforma e status */}
+          <div className="flex items-center justify-between text-xs">
+            {world.platform && (
+              <div className="flex items-center text-gray-400">
+                {world.platform === 'standalonewindows' ? '🖥️ PC' :
+                 world.platform === 'android' ? '📱 Quest' : '🎮 ' + world.platform}
+              </div>
+            )}
+            {world.releaseStatus && (
+              <span className={`px-2 py-1 rounded text-xs ${
+                world.releaseStatus === 'public' ? 'bg-green-600/20 text-green-300' :
+                world.releaseStatus === 'community' ? 'bg-blue-600/20 text-blue-300' :
+                'bg-gray-600/20 text-gray-300'
+              }`}>
+                {world.releaseStatus}
+              </span>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header e Busca */}
+      <div className="bg-gray-800 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">🌍 World Explorer</h2>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => {
+                setSearchQuery('test')
+                setSelectedCategory('social')
+                handleSearch()
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm transition-colors"
+            >
+              🧪 Teste
+            </button>
+            <div className="flex items-center space-x-2 text-sm text-gray-400">
+              <GlobeAltIcon className="w-4 h-4" />
+              <span>Descubra novos mundos</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Barra de busca */}
+        <div className="space-y-4">
+          <div className="flex space-x-3">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Buscar mundos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="w-full bg-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : '🔍 Buscar'}
+            </button>
+          </div>
+          
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Categorias */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-400">Categoria:</span>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.label}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Ordenação */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-400">Ordenar por:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Botão para limpar filtros */}
+            {(selectedCategory !== 'all' || sortBy !== 'popularity' || searchQuery.trim()) && (
+              <button
+                onClick={() => {
+                  setSelectedCategory('all')
+                  setSortBy('popularity')
+                  setSearchQuery('')
+                  setSearchResults([])
+                }}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm transition-colors"
+              >
+                🔄 Limpar Filtros
+              </button>
+            )}
+
+            {/* Indicador de filtros ativos */}
+            {(selectedCategory !== 'all' || sortBy !== 'popularity') && (
+              <div className="flex items-center space-x-1 text-xs text-blue-400">
+                <span>🔧</span>
+                <span>Filtros aplicados</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Resultados da busca */}
+      {(searchResults.length > 0 || (searchQuery.trim() || selectedCategory !== 'all')) && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white flex items-center">
+              📋 Resultados da Busca
+              {searchResults.length > 0 && (
+                <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-sm rounded-full">
+                  {searchResults.length}
+                </span>
+              )}
+            </h3>
+            {(searchQuery.trim() || selectedCategory !== 'all') && (
+              <div className="text-sm text-gray-400">
+                {searchQuery.trim() && `"${searchQuery}"`}
+                {searchQuery.trim() && selectedCategory !== 'all' && ' • '}
+                {selectedCategory !== 'all' && `Categoria: ${categories.find(c => c.id === selectedCategory)?.label}`}
+              </div>
+            )}
+          </div>
+          
+          {searchResults.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {searchResults.map((world, index) => (
+                <WorldCard key={world.id || index} world={world} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-800 rounded-xl">
+              <MagnifyingGlassIcon className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+              <p className="text-gray-400">Nenhum mundo encontrado</p>
+              <p className="text-gray-500 text-sm mt-1">
+                Tente usar palavras-chave diferentes ou alterar os filtros
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mundos em Destaque */}
+      {featuredWorlds.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white flex items-center">
+              ⭐ Mundos em Destaque
+            </h3>
+            <div className="px-2 py-1 bg-yellow-600/30 text-yellow-300 text-xs rounded-full">
+              📋 Demo Data
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {featuredWorlds.slice(0, 8).map((world, index) => (
+              <WorldCard key={world.id || index} world={world} featured />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mundos Populares */}
+      {popularWorlds.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white flex items-center">
+              🔥 Mundos Populares
+            </h3>
+            <div className="px-2 py-1 bg-yellow-600/30 text-yellow-300 text-xs rounded-full">
+              📋 Demo Data
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {popularWorlds.slice(0, 12).map((world, index) => (
+              <WorldCard key={world.id || index} world={world} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Estado de carregamento */}
+      {loading && (
+        <div className="text-center py-8">
+          <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-2" />
+          <p className="text-gray-400">Buscando mundos...</p>
+        </div>
+      )}
+
+      {/* Estado de erro */}
+      {error && (
+        <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 text-center">
+          <ExclamationTriangleIcon className="w-8 h-8 text-red-400 mx-auto mb-2" />
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
+
+      {/* Modal de detalhes do mundo */}
+      <WorldDetailsModal 
+        world={selectedWorld}
+        isOpen={showWorldModal}
+        onClose={() => setShowWorldModal(false)}
       />
     </div>
   )
