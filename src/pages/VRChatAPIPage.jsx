@@ -19,6 +19,8 @@ import {
   ClockIcon,
   PhotoIcon,
   CameraIcon,
+  DeviceTabletIcon,
+  BoltIcon,
   PlayIcon,
   XMarkIcon,
   Cog6ToothIcon
@@ -347,6 +349,180 @@ const VRChatAPIPage = () => {
     console.log('📊 Estatísticas calculadas:', stats)
     
     return stats
+  }
+
+  // Calcula estatísticas detalhadas da API real
+  const getDetailedStats = (friends, currentUser) => {
+    if (!friends || !Array.isArray(friends)) {
+      return {
+        friends: { online: 0, offline: 0, total: 0 },
+        worlds: { unique: 0, private: 0, public: 0 },
+        platforms: { desktop: 0, mobile: 0, quest: 0 },
+        trust: { trusted: 0, known: 0, user: 0, new: 0, visitor: 0 },
+        activity: { inWorld: 0, available: 0, busy: 0 }
+      }
+    }
+
+    // Estatísticas de amigos
+    const friendStats = getFriendsStats(friends)
+
+    // Estatísticas de mundos (onde os amigos estão)
+    const worldsData = friends
+      .filter(f => f.location && f.location !== 'offline' && f.location !== 'private')
+      .map(f => f.location.split(':')[0]) // Pega só o ID do mundo
+    
+    const uniqueWorlds = new Set(worldsData).size
+    const privateInstances = friends.filter(f => f.location && f.location.includes('private')).length
+    const publicInstances = friends.filter(f => f.location && !f.location.includes('private') && f.location !== 'offline').length
+
+    // Estatísticas de plataformas (baseado nos tags)
+    const platforms = {
+      desktop: friends.filter(f => f.tags?.some(tag => tag.includes('system_pc'))).length,
+      mobile: friends.filter(f => f.tags?.some(tag => tag.includes('system_android'))).length,
+      quest: friends.filter(f => f.tags?.some(tag => tag.includes('system_quest'))).length
+    }
+
+    // Estatísticas de trust rank
+    const trust = {
+      trusted: friends.filter(f => f.tags?.includes('system_trust_trusted')).length,
+      known: friends.filter(f => f.tags?.includes('system_trust_known')).length,
+      user: friends.filter(f => f.tags?.includes('system_trust_user')).length,
+      new: friends.filter(f => f.tags?.includes('system_trust_new')).length,
+      visitor: friends.filter(f => f.tags?.includes('system_trust_visitor')).length
+    }
+
+    // Estatísticas de atividade
+    const activity = {
+      inWorld: friends.filter(f => ['online', 'join me', 'ask me'].includes(f.status)).length,
+      available: friends.filter(f => f.status === 'join me').length,
+      busy: friends.filter(f => f.status === 'busy').length
+    }
+
+    return {
+      friends: friendStats,
+      worlds: { unique: uniqueWorlds, private: privateInstances, public: publicInstances },
+      platforms,
+      trust,
+      activity,
+      user: currentUser ? {
+        displayName: currentUser.displayName,
+        trustRank: currentUser.tags?.find(tag => tag.includes('system_trust_'))?.replace('system_trust_', '') || 'unknown',
+        status: currentUser.status || 'unknown'
+      } : null
+    }
+  }
+
+  // Analisa dados detalhados de mundos baseado nos amigos
+  const getWorldsAnalysis = (friends, recentWorlds) => {
+    if (!friends || !Array.isArray(friends)) {
+      return {
+        activeWorlds: [],
+        popularWorlds: [],
+        worldsByCategory: {},
+        instanceTypes: { public: 0, friendsOnly: 0, friendsOfGuests: 0, inviteOnly: 0, group: 0 },
+        totalActiveInstances: 0
+      }
+    }
+
+    // Extrai informações de mundos dos amigos online
+    const worldData = friends
+      .filter(f => f.status !== 'offline' && f.location && f.location !== 'private')
+      .map(f => {
+        const locationParts = f.location.split(':')
+        const worldId = locationParts[0]
+        const instanceInfo = locationParts[1] || ''
+        
+        // Determina o tipo de instância
+        let instanceType = 'public'
+        if (instanceInfo.includes('~friends')) instanceType = 'friendsOnly'
+        else if (instanceInfo.includes('~hidden')) instanceType = 'friendsOfGuests'
+        else if (instanceInfo.includes('~private')) instanceType = 'inviteOnly'
+        else if (instanceInfo.includes('~group')) instanceType = 'group'
+        
+        return {
+          worldId,
+          worldName: parseWorldLocation(f.location),
+          friendName: f.displayName,
+          friendStatus: f.status,
+          instanceType,
+          fullLocation: f.location,
+          instanceInfo
+        }
+      })
+
+    // Agrupa por mundo e conta amigos
+    const worldStats = {}
+    worldData.forEach(world => {
+      if (!worldStats[world.worldId]) {
+        worldStats[world.worldId] = {
+          worldId: world.worldId,
+          worldName: world.worldName,
+          friends: [],
+          instances: new Set(),
+          instanceTypes: new Set(),
+          totalFriends: 0
+        }
+      }
+      
+      worldStats[world.worldId].friends.push({
+        name: world.friendName,
+        status: world.friendStatus
+      })
+      worldStats[world.worldId].instances.add(world.instanceInfo)
+      worldStats[world.worldId].instanceTypes.add(world.instanceType)
+      worldStats[world.worldId].totalFriends++
+    })
+
+    // Converte para array e ordena por popularidade
+    const activeWorlds = Object.values(worldStats)
+      .map(world => ({
+        ...world,
+        instances: Array.from(world.instances),
+        instanceTypes: Array.from(world.instanceTypes),
+        instanceCount: world.instances.size
+      }))
+      .sort((a, b) => b.totalFriends - a.totalFriends)
+
+    // Mundos mais populares (com mais de 1 amigo)
+    const popularWorlds = activeWorlds.filter(w => w.totalFriends > 1)
+
+    // Estatísticas de tipos de instância
+    const instanceTypes = {
+      public: worldData.filter(w => w.instanceType === 'public').length,
+      friendsOnly: worldData.filter(w => w.instanceType === 'friendsOnly').length,
+      friendsOfGuests: worldData.filter(w => w.instanceType === 'friendsOfGuests').length,
+      inviteOnly: worldData.filter(w => w.instanceType === 'inviteOnly').length,
+      group: worldData.filter(w => w.instanceType === 'group').length
+    }
+
+    // Integra com mundos recentes se disponível
+    let recentWorldsFormatted = []
+    if (recentWorlds && Array.isArray(recentWorlds.worlds)) {
+      recentWorldsFormatted = recentWorlds.worlds.map(world => ({
+        id: world.id,
+        name: world.name || 'Mundo Sem Nome',
+        authorName: world.authorName || 'Autor Desconhecido',
+        imageUrl: world.imageUrl || '',
+        visitedAt: new Date(world.visitedAt || world.updated_at || Date.now()),
+        capacity: world.capacity || 0,
+        description: world.description || '',
+        tags: world.tags || [],
+        favorites: world.favorites || 0,
+        visits: world.visits || 0,
+        popularity: world.popularity || 0,
+        releaseStatus: world.releaseStatus || 'public'
+      }))
+    }
+
+    return {
+      activeWorlds,
+      popularWorlds,
+      recentWorlds: recentWorldsFormatted,
+      instanceTypes,
+      totalActiveInstances: worldData.length,
+      uniqueActiveWorlds: activeWorlds.length,
+      worldsWithMultipleFriends: popularWorlds.length
+    }
   }
 
   // Componente de amigo individual
@@ -1629,49 +1805,250 @@ const VRChatAPIPage = () => {
                   className="space-y-6"
                 >
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-white">Explorar Mundos</h2>
+                    <h2 className="text-xl font-bold text-white">Análise Detalhada de Mundos</h2>
                     {dashboardData?.recentWorlds?.mock !== undefined && (
                       <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                         dashboardData.recentWorlds.mock 
                           ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-500/50' 
                           : 'bg-green-600/30 text-green-300 border border-green-500/50'
                       }`}>
-                        {dashboardData.recentWorlds.mock ? '📋 Dados Demo' : '🔗 Dados Reais'}
+                        {dashboardData.recentWorlds.mock ? '📋 Dados Demo' : '🔗 Dados da API'}
                       </div>
                     )}
                   </div>
                   
-                  {dashboardData?.recentWorlds?.worlds && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
-                      {dashboardData.recentWorlds.worlds.map((world, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="bg-gray-800 rounded-xl overflow-hidden hover:bg-gray-750 transition-colors cursor-pointer"
-                        >
-                          <div className="aspect-video bg-gray-700 relative">
-                            <img
-                              src={world.imageUrl}
-                              alt={world.name}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                            <div className="absolute bottom-4 left-4 right-4">
-                              <h3 className="text-white font-semibold text-lg mb-1">{world.name}</h3>
-                              <p className="text-gray-300 text-sm mb-2">por {world.authorName}</p>
-                              <p className="text-gray-400 text-xs">{world.description}</p>
+                  {dashboardData?.friends?.friends ? (() => {
+                    const worldsAnalysis = getWorldsAnalysis(dashboardData.friends.friends, dashboardData.recentWorlds)
+                    
+                    return (
+                      <div className="space-y-6">
+                        {/* Estatísticas Gerais de Mundos */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="bg-gray-800 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-gray-400">Mundos Ativos</p>
+                                <p className="text-2xl font-bold text-green-400">{worldsAnalysis.uniqueActiveWorlds}</p>
+                              </div>
+                              <GlobeAltIcon className="w-8 h-8 text-green-400" />
                             </div>
                           </div>
-                          <div className="p-4">
-                            <div className="flex items-center justify-between text-sm text-gray-400">
-                              <span>Capacidade: {world.capacity}</span>
-                              <span>{new Date(world.visitedAt).toLocaleDateString()}</span>
+                          
+                          <div className="bg-gray-800 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-gray-400">Instâncias Ativas</p>
+                                <p className="text-2xl font-bold text-blue-400">{worldsAnalysis.totalActiveInstances}</p>
+                              </div>
+                              <MapIcon className="w-8 h-8 text-blue-400" />
                             </div>
                           </div>
-                        </motion.div>
-                      ))}
+                          
+                          <div className="bg-gray-800 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-gray-400">Mundos Populares</p>
+                                <p className="text-2xl font-bold text-purple-400">{worldsAnalysis.worldsWithMultipleFriends}</p>
+                              </div>
+                              <HeartIcon className="w-8 h-8 text-purple-400" />
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gray-800 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-gray-400">Mundos Recentes</p>
+                                <p className="text-2xl font-bold text-cyan-400">{worldsAnalysis.recentWorlds?.length || 0}</p>
+                              </div>
+                              <ClockIcon className="w-8 h-8 text-cyan-400" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Tipos de Instância */}
+                        <div className="bg-gray-800 rounded-xl p-6">
+                          <h3 className="text-white font-semibold mb-4 flex items-center">
+                            <ShieldCheckIcon className="w-5 h-5 mr-2 text-yellow-400" />
+                            Tipos de Instância
+                          </h3>
+                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div className="text-center">
+                              <div className="w-8 h-8 bg-green-500 rounded-full mx-auto mb-2"></div>
+                              <p className="text-sm text-gray-400">Público</p>
+                              <p className="text-lg font-bold text-green-400">{worldsAnalysis.instanceTypes.public}</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="w-8 h-8 bg-blue-500 rounded-full mx-auto mb-2"></div>
+                              <p className="text-sm text-gray-400">Amigos</p>
+                              <p className="text-lg font-bold text-blue-400">{worldsAnalysis.instanceTypes.friendsOnly}</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="w-8 h-8 bg-purple-500 rounded-full mx-auto mb-2"></div>
+                              <p className="text-sm text-gray-400">Amigos+</p>
+                              <p className="text-lg font-bold text-purple-400">{worldsAnalysis.instanceTypes.friendsOfGuests}</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2"></div>
+                              <p className="text-sm text-gray-400">Convite</p>
+                              <p className="text-lg font-bold text-red-400">{worldsAnalysis.instanceTypes.inviteOnly}</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="w-8 h-8 bg-orange-500 rounded-full mx-auto mb-2"></div>
+                              <p className="text-sm text-gray-400">Grupo</p>
+                              <p className="text-lg font-bold text-orange-400">{worldsAnalysis.instanceTypes.group}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mundos Mais Ativos (onde estão os amigos) */}
+                        {worldsAnalysis.activeWorlds.length > 0 && (
+                          <div className="bg-gray-800 rounded-xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                              <BoltIcon className="w-5 h-5 mr-2 text-green-400" />
+                              Mundos Mais Ativos Agora
+                            </h3>
+                            <div className="space-y-3">
+                              {worldsAnalysis.activeWorlds.slice(0, 5).map((world, index) => (
+                                <div key={world.worldId} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="flex-shrink-0">
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${
+                                        index === 0 ? 'bg-yellow-500' : 
+                                        index === 1 ? 'bg-gray-400' : 
+                                        index === 2 ? 'bg-orange-500' : 'bg-gray-600'
+                                      }`}>
+                                        {index + 1}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <p className="text-white font-medium">{world.worldName}</p>
+                                      <p className="text-sm text-gray-400">
+                                        {world.instanceCount} instância{world.instanceCount > 1 ? 's' : ''} • 
+                                        {world.instanceTypes.join(', ')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-lg font-bold text-green-400">{world.totalFriends}</p>
+                                    <p className="text-xs text-gray-400">amigos</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Mundos Visitados Recentemente */}
+                        {worldsAnalysis.recentWorlds && worldsAnalysis.recentWorlds.length > 0 && (
+                          <div className="bg-gray-800 rounded-xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                              <ClockIcon className="w-5 h-5 mr-2 text-cyan-400" />
+                              Mundos Visitados Recentemente
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {worldsAnalysis.recentWorlds.slice(0, 6).map((world, index) => (
+                                <div key={world.id || index} className="bg-gray-700/50 rounded-lg p-4">
+                                  <div className="space-y-3">
+                                    {world.imageUrl && (
+                                      <div className="aspect-video bg-gray-600 rounded-lg overflow-hidden">
+                                        <img 
+                                          src={world.imageUrl} 
+                                          alt={world.name}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.style.display = 'none'
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                    <div>
+                                      <h4 className="text-white font-medium text-sm line-clamp-2">{world.name}</h4>
+                                      <p className="text-xs text-gray-400 mt-1">por {world.authorName}</p>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs text-gray-400">
+                                      <span>👥 {world.capacity || 0}</span>
+                                      <span>❤️ {world.favorites || 0}</span>
+                                      <span>👁️ {world.visits || 0}</span>
+                                    </div>
+                                    {world.tags && world.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {world.tags.slice(0, 3).map((tag, tagIndex) => (
+                                          <span key={tagIndex} className="px-2 py-1 bg-gray-600 text-xs text-gray-300 rounded">
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Detalhes dos Amigos por Mundo */}
+                        {worldsAnalysis.popularWorlds.length > 0 && (
+                          <div className="bg-gray-800 rounded-xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                              <UserGroupIcon className="w-5 h-5 mr-2 text-blue-400" />
+                              Mundos com Múltiplos Amigos
+                            </h3>
+                            <div className="space-y-4">
+                              {worldsAnalysis.popularWorlds.map((world, index) => (
+                                <div key={world.worldId} className="border border-gray-700 rounded-lg p-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-white font-medium">{world.worldName}</h4>
+                                    <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                                      {world.totalFriends} amigos
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                      <p className="text-sm text-gray-400 mb-2">Amigos neste mundo:</p>
+                                      <div className="space-y-1">
+                                        {world.friends.map((friend, friendIndex) => (
+                                          <div key={friendIndex} className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-300">{friend.name}</span>
+                                            <span className={`px-2 py-1 rounded text-xs ${
+                                              friend.status === 'online' ? 'bg-green-600 text-green-100' :
+                                              friend.status === 'join me' ? 'bg-blue-600 text-blue-100' :
+                                              friend.status === 'busy' ? 'bg-red-600 text-red-100' :
+                                              'bg-gray-600 text-gray-100'
+                                            }`}>
+                                              {friend.status}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-400 mb-2">Instâncias ativas:</p>
+                                      <div className="space-y-1">
+                                        {world.instanceTypes.map((type, typeIndex) => (
+                                          <span key={typeIndex} className={`inline-block px-2 py-1 rounded text-xs mr-2 ${
+                                            type === 'public' ? 'bg-green-600 text-green-100' :
+                                            type === 'friendsOnly' ? 'bg-blue-600 text-blue-100' :
+                                            type === 'friendsOfGuests' ? 'bg-purple-600 text-purple-100' :
+                                            type === 'inviteOnly' ? 'bg-red-600 text-red-100' :
+                                            type === 'group' ? 'bg-orange-600 text-orange-100' :
+                                            'bg-gray-600 text-gray-100'
+                                          }`}>
+                                            {type}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })() : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-400">Carregue os dados dos amigos para ver a análise detalhada de mundos</p>
                     </div>
                   )}
                 </motion.div>
@@ -1685,59 +2062,167 @@ const VRChatAPIPage = () => {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-6"
                 >
-                  <h2 className="text-xl font-bold text-white">Estatísticas</h2>
+                  <h2 className="text-xl font-bold text-white">Estatísticas da API Real</h2>
                   
-                  {dashboardData?.stats && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
-                      <div className="bg-gray-800 rounded-xl p-6">
-                        <h3 className="text-white font-semibold mb-4">Atividade</h3>
-                        <div className="space-y-4">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Horas Jogadas:</span>
-                            <span className="text-purple-400 font-medium">{dashboardData.stats.hoursPlayed}h</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Total de Fotos:</span>
-                            <span className="text-pink-400 font-medium">{dashboardData.stats.totalPhotos}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Trust Rank:</span>
-                            <span className="text-orange-400 font-medium">{dashboardData.stats.trustRank}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-gray-800 rounded-xl p-6">
-                        <h3 className="text-white font-semibold mb-4">Conteúdo</h3>
-                        <div className="space-y-4">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Amigos:</span>
-                            <span className="text-orange-400 font-medium">{dashboardData.stats.totalFriends}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Mundos Visitados:</span>
-                            <span className="text-blue-400 font-medium">{dashboardData.stats.totalWorlds}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Avatares:</span>
-                            <span className="text-green-400 font-medium">{dashboardData.stats.totalAvatars}</span>
+                  {dashboardData?.friends?.friends ? (() => {
+                    const detailedStats = getDetailedStats(dashboardData.friends.friends, dashboardData.currentUser)
+                    
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* Estatísticas de Amigos */}
+                        <div className="bg-gray-800 rounded-xl p-6">
+                          <h3 className="text-white font-semibold mb-4 flex items-center">
+                            <UserGroupIcon className="w-5 h-5 mr-2 text-blue-400" />
+                            Amigos
+                          </h3>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Total:</span>
+                              <span className="text-blue-400 font-medium">{detailedStats.friends.total}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Online:</span>
+                              <span className="text-green-400 font-medium">{detailedStats.friends.online}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Offline:</span>
+                              <span className="text-gray-500 font-medium">{detailedStats.friends.offline}</span>
+                            </div>
+                            <div className="mt-3 bg-gray-700 rounded-full h-2">
+                              <div 
+                                className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-500"
+                                style={{ width: `${detailedStats.friends.total > 0 ? (detailedStats.friends.online / detailedStats.friends.total) * 100 : 0}%` }}
+                              ></div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="bg-gray-800 rounded-xl p-6 sm:col-span-2">
-                        <h3 className="text-white font-semibold mb-4">Informações da Conta</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Conta Criada:</span>
-                            <span className="text-white">{new Date(dashboardData.stats.accountCreated).toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Último Login:</span>
-                            <span className="text-white">{new Date(dashboardData.stats.lastLogin).toLocaleDateString()}</span>
+
+                        {/* Estatísticas de Mundos */}
+                        <div className="bg-gray-800 rounded-xl p-6">
+                          <h3 className="text-white font-semibold mb-4 flex items-center">
+                            <GlobeAltIcon className="w-5 h-5 mr-2 text-purple-400" />
+                            Mundos
+                          </h3>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Únicos:</span>
+                              <span className="text-purple-400 font-medium">{detailedStats.worlds.unique}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Públicos:</span>
+                              <span className="text-green-400 font-medium">{detailedStats.worlds.public}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Privados:</span>
+                              <span className="text-yellow-400 font-medium">{detailedStats.worlds.private}</span>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Estatísticas de Plataformas */}
+                        <div className="bg-gray-800 rounded-xl p-6">
+                          <h3 className="text-white font-semibold mb-4 flex items-center">
+                            <DeviceTabletIcon className="w-5 h-5 mr-2 text-cyan-400" />
+                            Plataformas
+                          </h3>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Desktop:</span>
+                              <span className="text-cyan-400 font-medium">{detailedStats.platforms.desktop}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Quest:</span>
+                              <span className="text-orange-400 font-medium">{detailedStats.platforms.quest}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Mobile:</span>
+                              <span className="text-pink-400 font-medium">{detailedStats.platforms.mobile}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Estatísticas de Trust Rank */}
+                        <div className="bg-gray-800 rounded-xl p-6">
+                          <h3 className="text-white font-semibold mb-4 flex items-center">
+                            <ShieldCheckIcon className="w-5 h-5 mr-2 text-yellow-400" />
+                            Trust Ranks
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Trusted:</span>
+                              <span className="text-purple-400 font-medium">{detailedStats.trust.trusted}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Known:</span>
+                              <span className="text-orange-400 font-medium">{detailedStats.trust.known}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">User:</span>
+                              <span className="text-green-400 font-medium">{detailedStats.trust.user}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">New:</span>
+                              <span className="text-blue-400 font-medium">{detailedStats.trust.new}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Visitor:</span>
+                              <span className="text-gray-500 font-medium">{detailedStats.trust.visitor}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Estatísticas de Atividade */}
+                        <div className="bg-gray-800 rounded-xl p-6">
+                          <h3 className="text-white font-semibold mb-4 flex items-center">
+                            <BoltIcon className="w-5 h-5 mr-2 text-green-400" />
+                            Atividade
+                          </h3>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Em Mundo:</span>
+                              <span className="text-green-400 font-medium">{detailedStats.activity.inWorld}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Disponível:</span>
+                              <span className="text-blue-400 font-medium">{detailedStats.activity.available}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Ocupado:</span>
+                              <span className="text-red-400 font-medium">{detailedStats.activity.busy}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Informações do Usuário Atual */}
+                        {detailedStats.user && (
+                          <div className="bg-gray-800 rounded-xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                              <UserIcon className="w-5 h-5 mr-2 text-indigo-400" />
+                              Seu Perfil
+                            </h3>
+                            <div className="space-y-4">
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Nome:</span>
+                                <span className="text-indigo-400 font-medium text-sm truncate max-w-24" title={detailedStats.user.displayName}>
+                                  {detailedStats.user.displayName}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Trust:</span>
+                                <span className="text-yellow-400 font-medium capitalize">{detailedStats.user.trustRank}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Status:</span>
+                                <span className="text-green-400 font-medium capitalize">{detailedStats.user.status}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
+                    )
+                  })() : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-400">Carregue os dados dos amigos para ver as estatísticas detalhadas</p>
                     </div>
                   )}
                 </motion.div>
