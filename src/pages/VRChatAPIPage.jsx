@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 import { useVRChatAPI } from '../hooks/useVRChatAPI'
 import WorldDetailsModal from '../components/VRChat/WorldDetailsModal'
+import VRChatLoading from '../components/ui/VRChatLoading'
 import { 
   LinkIcon,
   GlobeAltIcon,
@@ -3072,7 +3073,12 @@ const VRChatAPIPage = () => {
                 disabled={loadingDashboard}
                 className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
               >
-                <ArrowPathIcon className={`w-4 h-4 ${loadingDashboard ? 'animate-spin' : ''}`} />
+                <VRChatLoading 
+                  size="sm" 
+                  type="refresh" 
+                  showText={false}
+                  className="w-4 h-4"
+                />
               </button>
               
               <button
@@ -3251,7 +3257,7 @@ const VRChatAPIPage = () => {
                         >
                           {loadingDashboard ? (
                             <>
-                              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                              <VRChatLoading size="sm" type="refresh" showText={false} className="w-4 h-4 mr-2" />
                               Atualizando...
                             </>
                           ) : (
@@ -3678,7 +3684,7 @@ const VRChatAPIPage = () => {
                           >
                             {loadingDashboard ? (
                               <>
-                                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                <VRChatLoading size="sm" type="refresh" showText={false} className="w-4 h-4" />
                                 <span>Atualizando...</span>
                               </>
                             ) : (
@@ -3961,7 +3967,7 @@ const VRChatAPIPage = () => {
                           >
                             {loadingDashboard ? (
                               <>
-                                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                <VRChatLoading size="sm" type="refresh" showText={false} className="w-4 h-4" />
                                 <span>Carregando...</span>
                               </>
                             ) : (
@@ -4232,17 +4238,12 @@ const VRChatAPIPage = () => {
                 })()}
                 
                 {loadingDashboard ? (
-                  <div className="space-y-3">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="animate-pulse flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gray-700 rounded-full" />
-                        <div className="flex-1">
-                          <div className="h-4 bg-gray-700 rounded mb-2" />
-                          <div className="h-3 bg-gray-700 rounded w-2/3" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <VRChatLoading 
+                    size="lg" 
+                    type="user" 
+                    text="Loading Friends..." 
+                    className="h-64 rounded-xl"
+                  />
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     <AnimatePresence>
@@ -4633,7 +4634,9 @@ const WorldExplorer = () => {
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : (
+              {loading ? (
+                <VRChatLoading size="sm" type="refresh" showText={false} className="w-5 h-5" />
+              ) : (
                 <span className="flex items-center gap-2">
                   <MagnifyingGlassIcon className="w-5 h-5" />
                   Buscar
@@ -4783,10 +4786,12 @@ const WorldExplorer = () => {
 
       {/* Estado de carregamento */}
       {loading && (
-        <div className="text-center py-8">
-          <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-2" />
-          <p className="text-gray-400">Buscando mundos...</p>
-        </div>
+        <VRChatLoading 
+          size="lg" 
+          type="default" 
+          text="Searching Worlds..." 
+          className="py-16 rounded-xl"
+        />
       )}
 
       {/* Estado de erro */}
