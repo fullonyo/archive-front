@@ -4,194 +4,210 @@ import {
   UserGroupIcon,
   ClockIcon,
   GlobeAltIcon,
+  HeartIcon,
+  UsersIcon,
+  ChartBarIcon,
   ArrowPathIcon 
 } from '@heroicons/react/24/outline'
 import VRChatLoading from '../ui/VRChatLoading'
 
-const VRChatDashboard = ({ 
-  connection, 
-  dashboardData, 
-  lastRefresh, 
-  onRefresh, 
-  loading 
-}) => {
-  const WorldCard = ({ world }) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-750 transition-colors cursor-pointer"
-    >
-      <div className="aspect-video bg-gray-700 relative">
-        <img
-          src={world.imageUrl}
-          alt={world.name}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMzc0MTUxIi8+PHBhdGggZD0iTTEwMCA0MEM4Ni4xOSA0MCA3NSA1MS4xOSA3NSA2NVM4Ni4xOSA4NSAxMDAgODVTMTI1IDczLjgxIDEyNSA2MFMxMTMuODEgNDAgMTAwIDQwWk0xMDAgNzVDOTEuNzIgNzUgODUgNjguMjggODUgNjBTOTEuNzIgNDUgMTAwIDQ1UzExNSA1MS43MiAxMTUgNjBTMTA4LjI4IDc1IDEwMCA3NVoiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-2 left-2 right-2">
-          <p className="text-white text-sm font-medium truncate">{world.name}</p>
-          <p className="text-gray-300 text-xs">por {world.authorName}</p>
-        </div>
-      </div>
-    </motion.div>
-  )
-
+const VRChatDashboard = ({ profile, stats, recentWorlds, onRefresh, loading }) => {
   return (
     <motion.div
       key="dashboard"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="space-y-6"
+      className="space-y-4"
     >
-      {/* Perfil Card */}
-      {connection && (
-        <div className="bg-gray-800 rounded-xl p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+      {/* Perfil Card - Estilo minimalista */}
+      {profile && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-6">
+            <div className="flex items-start space-x-4">
               <img
-                src={connection.vrchatAvatarUrl}
-                alt={connection.vrchatDisplayName}
-                className="w-16 h-16 rounded-full object-cover bg-gray-600"
+                src={profile.profilePicOverride || profile.userIcon}
+                alt={profile.displayName}
+                className="w-16 h-16 rounded-full object-cover bg-gray-200 dark:bg-gray-600"
                 onError={(e) => {
-                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMzc0MTUxIiByeD0iMzIiLz48cGF0aCBkPSJNMzIgMTZDMjQuOTU4IDE2IDIwIDIxLjk1OCAyMCAzMlMyNC45NTggNDggMzIgNDhTNDQgNDIuMDQyIDQ0IDMyUzM5LjA0MiAxNiAzMiAxNlpNMzIgNDBDMjguNjg2IDQwIDI2IDM3LjMxNCAyNiAzNFMyOC42ODYgMjggMzIgMjhTMzggMzAuNjg2IDM4IDM0UzM1LjMxNCA0MCAzMiA0MFoiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
+                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRDFENUREIiByeD0iMzIiLz48cGF0aCBkPSJNMzIgMTZDMjQuOTU4IDE2IDIwIDIxLjk1OCAyMCAzMlMyNC45NTggNDggMzIgNDhTNDQgNDIuMDQyIDQ0IDMyUzM5LjA0MiAxNiAzMiAxNlpNMzIgNDBDMjguNjg2IDQwIDI2IDM3LjMxNCAyNiAzNFMyOC42ODYgMjggMzIgMjhTMzggMzAuNjg2IDM4IDM0UzM1LjMxNCA0MCAzMiA0MFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
                 }}
               />
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-white">{connection.vrchatDisplayName}</h2>
-                <p className="text-gray-400">@{connection.vrchatUsername}</p>
-                <div className="flex items-center space-x-4 mt-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    connection.vrchatStatus === 'online' ? 'bg-green-600 text-green-100' :
-                    connection.vrchatStatus === 'active' ? 'bg-blue-600 text-blue-100' :
-                    'bg-gray-600 text-gray-300'
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{profile.displayName}</h2>
+                <p className="text-gray-600 dark:text-gray-400">@{profile.username}</p>
+                
+                <div className="flex items-center space-x-3 mt-3">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    profile.status === 'online' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                    profile.status === 'active' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
+                    profile.status === 'busy' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                   }`}>
-                    {connection.vrchatStatus === 'online' ? 'Online' :
-                     connection.vrchatStatus === 'active' ? 'Ativo' :
-                     'Offline'}
+                    <div className={`w-2 h-2 rounded-full mr-1 ${
+                      profile.status === 'online' ? 'bg-green-500' :
+                      profile.status === 'active' ? 'bg-blue-500' :
+                      profile.status === 'busy' ? 'bg-red-500' :
+                      'bg-gray-400'
+                    }`} />
+                    {profile.status === 'online' && 'Online'}
+                    {profile.status === 'active' && 'Ativo'} 
+                    {profile.status === 'busy' && 'Ocupado'}
+                    {profile.status === 'offline' && 'Offline'}
                   </span>
+                  
+                  {profile.location && (
+                    <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                      <GlobeAltIcon className="w-4 h-4 mr-1" />
+                      {profile.location}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
             
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-              title="Atualizar dados"
-            >
-              {loading ? (
-                <VRChatLoading 
-                  size="sm" 
-                  type="refresh" 
-                  showText={false}
-                  className="w-5 h-5"
-                />
-              ) : (
-                <ArrowPathIcon className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-          
-          {lastRefresh && (
-            <p className="text-xs text-gray-500 mt-3">
-              Última atualização: {new Date(lastRefresh).toLocaleString('pt-BR')}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Quick Stats */}
-      {dashboardData?.stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <UserGroupIcon className="w-8 h-8 text-orange-400" />
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {dashboardData.stats.totalFriends || 0}
+            {profile.bio && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+                  {profile.bio}
                 </p>
-                <p className="text-sm text-gray-400">Amigos</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <ClockIcon className="w-8 h-8 text-purple-400" />
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {dashboardData.stats.hoursPlayed || 0}h
-                </p>
-                <p className="text-sm text-gray-400">Jogadas</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <GlobeAltIcon className="w-8 h-8 text-blue-400" />
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {dashboardData.stats.worldsVisited || 0}
-                </p>
-                <p className="text-sm text-gray-400">Mundos</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mundos Recentes */}
-      {dashboardData?.recentWorlds?.worlds && (
-        <div className="bg-gray-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Mundos Recentes</h3>
-            {!dashboardData.recentWorlds.worlds?.length && (
-              <div className="px-2 py-1 rounded-full text-xs font-medium bg-gray-600/30 text-gray-400">
-                Sem conexão
               </div>
             )}
           </div>
-          
-          {dashboardData.recentWorlds.worlds.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {dashboardData.recentWorlds.worlds.slice(0, 8).map((world, index) => (
-                <WorldCard key={index} world={world} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <GlobeAltIcon className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-              <p className="text-gray-400">Nenhum mundo recente</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Explore alguns mundos no VRChat para vê-los aqui
-              </p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Estado de carregamento para primeira carga */}
-      {loading && !dashboardData && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-700 rounded"></div>
-                <div className="flex-1">
-                  <div className="h-6 bg-gray-700 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-700 rounded w-1/2"></div>
-                </div>
-              </div>
+      {/* Stats Grid - Estilo clean */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <UserGroupIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-          ))}
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Amigos</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {stats?.totalFriends || 0}
+              </p>
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <ClockIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Online</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {stats?.onlineFriends || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <GlobeAltIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Mundos</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {stats?.worldsVisited || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <HeartIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Favoritos</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {stats?.favoriteWorlds || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mundos Recentes - Estilo feed */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Mundos Recentes</h3>
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <VRChatLoading size="md" type="world" showText={false} />
+            </div>
+          ) : !recentWorlds || recentWorlds.length === 0 ? (
+            <div className="text-center py-12">
+              <GlobeAltIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 dark:text-gray-400">Nenhum mundo recente encontrado</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                Visite alguns mundos no VRChat para vê-los aqui!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recentWorlds.slice(0, 6).map((world, index) => (
+                <motion.div
+                  key={world.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="group cursor-pointer"
+                >
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg overflow-hidden hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <div className="aspect-video bg-gray-200 dark:bg-gray-600 relative overflow-hidden">
+                      <img
+                        src={world.imageUrl || world.thumbnailImageUrl}
+                        alt={world.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjNGNEY2Ii8+PHBhdGggZD0iTTE2MCA3MEMxNDcuODUgNzAgMTM4IDc5Ljg1IDEzOCA5MlMxNDcuODUgMTE0IDE2MCAxMTRTMTgyIDEwNC4xNSAxODIgOTJTMTcyLjE1IDcwIDE2MCA3MFpNMTYwIDEwNEMxNTMuMzcgMTA0IDE0OCA5OC42MyAxNDggOTJTMTUzLjM3IDgwIDE2MCA4MFMxNzIgODUuMzcgMTcyIDkyUzE2Ni42MyAxMDQgMTYwIDEwNFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
+                        }}
+                      />
+                      
+                      {world.occupants !== undefined && (
+                        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-white px-2 py-1 rounded-md text-xs">
+                          <UsersIcon className="w-3 h-3 inline mr-1" />
+                          {world.occupants}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="p-3">
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">
+                        {world.name}
+                      </h4>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
+                        por {world.authorName}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </motion.div>
   )
 }
