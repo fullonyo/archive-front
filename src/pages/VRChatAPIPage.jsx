@@ -552,6 +552,515 @@ const VRChatAPIPage = () => {
       })
     }
 
+    // Função para detectar e formatar idiomas com bandeiras SVG
+    const getLanguageInfo = (tags) => {
+      if (!tags || !Array.isArray(tags)) return []
+      
+      const languageMap = {
+        'language_eng': { 
+          name: 'English', 
+          code: 'EN',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#012169"/>
+              <path d="M0 0l24 16M24 0L0 16" stroke="#ffffff" strokeWidth="1.6"/>
+              <path d="M10 0v16M0 5.33h24M0 10.67h24" stroke="#ffffff" strokeWidth="0.8"/>
+              <path d="M0 0l24 16M24 0L0 16" stroke="#C8102E" strokeWidth="0.8"/>
+              <path d="M12 0v16M0 8h24" stroke="#C8102E" strokeWidth="1.6"/>
+            </svg>
+          )
+        },
+        'language_por': { 
+          name: 'Português', 
+          code: 'PT',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#009639"/>
+              <rect x="0" width="9.6" height="16" fill="#009639"/>
+              <polygon points="9.6,0 24,8 9.6,16" fill="#FEDD00"/>
+              <circle cx="10.8" cy="8" r="2.4" fill="#012169"/>
+            </svg>
+          )
+        },
+        'language_esp': { 
+          name: 'Español', 
+          code: 'ES',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#C60B1E"/>
+              <rect y="4" width="24" height="8" fill="#FFC400"/>
+            </svg>
+          )
+        },
+        'language_fra': { 
+          name: 'Français', 
+          code: 'FR',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="8" height="16" fill="#002395"/>
+              <rect x="8" width="8" height="16" fill="#ffffff"/>
+              <rect x="16" width="8" height="16" fill="#ED2939"/>
+            </svg>
+          )
+        },
+        'language_deu': { 
+          name: 'Deutsch', 
+          code: 'DE',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="5.33" fill="#000000"/>
+              <rect y="5.33" width="24" height="5.33" fill="#DD0000"/>
+              <rect y="10.67" width="24" height="5.33" fill="#FFCE00"/>
+            </svg>
+          )
+        },
+        'language_ita': { 
+          name: 'Italiano', 
+          code: 'IT',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="8" height="16" fill="#009246"/>
+              <rect x="8" width="8" height="16" fill="#ffffff"/>
+              <rect x="16" width="8" height="16" fill="#CE2B37"/>
+            </svg>
+          )
+        },
+        'language_jpn': { 
+          name: '日本語', 
+          code: 'JP',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#ffffff"/>
+              <circle cx="12" cy="8" r="4.8" fill="#BC002D"/>
+            </svg>
+          )
+        },
+        'language_kor': { 
+          name: '한국어', 
+          code: 'KR',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#ffffff"/>
+              <circle cx="12" cy="8" r="3.2" fill="#CD2E3A"/>
+              <circle cx="12" cy="8" r="1.6" fill="#0047A0"/>
+            </svg>
+          )
+        },
+        'language_rus': { 
+          name: 'Русский', 
+          code: 'RU',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="5.33" fill="#ffffff"/>
+              <rect y="5.33" width="24" height="5.33" fill="#0039A6"/>
+              <rect y="10.67" width="24" height="5.33" fill="#D52B1E"/>
+            </svg>
+          )
+        },
+        'language_chn': { 
+          name: '中文', 
+          code: 'CN',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#DE2910"/>
+              <polygon points="4,3 5,4 5,6 3,6 2,4" fill="#FFDE00"/>
+              <polygon points="7,2 7.5,2.5 8,2 7.5,1.5" fill="#FFDE00"/>
+              <polygon points="8,4 8.5,4.5 9,4 8.5,3.5" fill="#FFDE00"/>
+              <polygon points="8,6 8.5,6.5 9,6 8.5,5.5" fill="#FFDE00"/>
+              <polygon points="7,8 7.5,8.5 8,8 7.5,7.5" fill="#FFDE00"/>
+            </svg>
+          )
+        },
+        'language_nld': { 
+          name: 'Nederlands', 
+          code: 'NL',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="5.33" fill="#AE1C28"/>
+              <rect y="5.33" width="24" height="5.33" fill="#ffffff"/>
+              <rect y="10.67" width="24" height="5.33" fill="#21468B"/>
+            </svg>
+          )
+        },
+        'language_swe': { 
+          name: 'Svenska', 
+          code: 'SE',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#006AA7"/>
+              <rect x="6" width="2" height="16" fill="#FECC00"/>
+              <rect y="7" width="24" height="2" fill="#FECC00"/>
+            </svg>
+          )
+        },
+        'language_nor': { 
+          name: 'Norsk', 
+          code: 'NO',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#EF2B2D"/>
+              <rect x="6" width="2" height="16" fill="#ffffff"/>
+              <rect y="7" width="24" height="2" fill="#ffffff"/>
+              <rect x="7" width="1" height="16" fill="#002868"/>
+              <rect y="7.5" width="24" height="1" fill="#002868"/>
+            </svg>
+          )
+        },
+        'language_dan': { 
+          name: 'Dansk', 
+          code: 'DK',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#C60C30"/>
+              <rect x="7" width="2" height="16" fill="#ffffff"/>
+              <rect y="7" width="24" height="2" fill="#ffffff"/>
+            </svg>
+          )
+        },
+        'language_fin': { 
+          name: 'Suomi', 
+          code: 'FI',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="16" fill="#ffffff"/>
+              <rect x="6" width="3" height="16" fill="#003580"/>
+              <rect y="6.5" width="24" height="3" fill="#003580"/>
+            </svg>
+          )
+        },
+        'language_pol': { 
+          name: 'Polski', 
+          code: 'PL',
+          flag: (
+            <svg className="w-5 h-5" viewBox="0 0 24 16" fill="none">
+              <rect width="24" height="8" fill="#ffffff"/>
+              <rect y="8" width="24" height="8" fill="#DC143C"/>
+            </svg>
+          )
+        }
+      }
+
+      const languages = []
+      
+      tags.forEach(tag => {
+        if (tag.startsWith('language_') && languageMap[tag]) {
+          languages.push(languageMap[tag])
+        }
+      })
+
+      return languages
+    }
+
+    // Função inteligente para detectar e formatar links sociais
+    const formatSocialLink = (url) => {
+      if (!url) return null
+
+      const socialPlatforms = {
+        // Discord
+        'discord.com': {
+          name: 'Discord',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 71 55" fill="currentColor">
+              <g clipPath="url(#clip0)">
+                <path d="M60.1045 4.8978C55.5792 2.8214 50.7265 1.2916 45.6527 0.41542C45.5603 0.39851 45.468 0.440769 45.4204 0.525289C44.7963 1.6353 44.105 3.0834 43.6209 4.2216C38.1637 3.4046 32.7345 3.4046 27.3892 4.2216C26.905 3.0581 26.1886 1.6353 25.5617 0.525289C25.5141 0.443589 25.4218 0.40133 25.3294 0.41542C20.2584 1.2888 15.4057 2.8186 10.8776 4.8978C10.8384 4.9147 10.8048 4.9429 10.7825 4.9795C1.57795 18.7309 -0.943561 32.1443 0.293408 45.3914C0.299005 45.4562 0.335386 45.5182 0.385761 45.5576C6.45866 50.0174 12.3413 52.7249 18.1147 54.5195C18.2071 54.5477 18.305 54.5139 18.3638 54.4378C19.7295 52.5728 20.9469 50.6063 21.9907 48.5383C22.0523 48.4172 21.9935 48.2735 21.8676 48.2256C19.9366 47.4931 18.0979 46.6 16.3292 45.5858C16.1893 45.5041 16.1781 45.304 16.3068 45.2082C16.679 44.9293 17.0513 44.6391 17.4067 44.3461C17.471 44.2926 17.5606 44.2813 17.6362 44.3151C29.2558 49.6202 41.8354 49.6202 53.3179 44.3151C53.3935 44.2785 53.4831 44.2898 53.5502 44.3433C53.9057 44.6363 54.2779 44.9293 54.6529 45.2082C54.7816 45.304 54.7732 45.5041 54.6333 45.5858C52.8646 46.6197 51.0259 47.4931 49.0921 48.2228C48.9662 48.2707 48.9102 48.4172 48.9718 48.5383C50.038 50.6034 51.2554 52.5699 52.5959 54.435C52.6519 54.5139 52.7526 54.5477 52.845 54.5195C58.6464 52.7249 64.529 50.0174 70.6019 45.5576C70.6551 45.5182 70.6887 45.459 70.6943 45.3942C72.1747 30.0791 68.2147 16.7757 60.1968 4.9823C60.1772 4.9429 60.1437 4.9147 60.1045 4.8978ZM23.7259 37.3253C20.2276 37.3253 17.3451 34.1136 17.3451 30.1693C17.3451 26.225 20.1717 23.0133 23.7259 23.0133C27.308 23.0133 30.1626 26.2532 30.1066 30.1693C30.1066 34.1136 27.28 37.3253 23.7259 37.3253ZM47.3178 37.3253C43.8196 37.3253 40.9371 34.1136 40.9371 30.1693C40.9371 26.225 43.7636 23.0133 47.3178 23.0133C50.9 23.0133 53.7545 26.2532 53.6986 30.1693C53.6986 34.1136 50.9 37.3253 47.3178 37.3253Z"/>
+              </g>
+            </svg>
+          ),
+          color: 'text-indigo-400 hover:text-indigo-300',
+          bgColor: 'bg-indigo-500/10 hover:bg-indigo-500/20',
+          borderColor: 'border-indigo-500/30',
+          displayName: 'Discord',
+        },
+        'discordapp.com': {
+          name: 'Discord',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 71 55" fill="currentColor">
+              <g clipPath="url(#clip0)">
+                <path d="M60.1045 4.8978C55.5792 2.8214 50.7265 1.2916 45.6527 0.41542C45.5603 0.39851 45.468 0.440769 45.4204 0.525289C44.7963 1.6353 44.105 3.0834 43.6209 4.2216C38.1637 3.4046 32.7345 3.4046 27.3892 4.2216C26.905 3.0581 26.1886 1.6353 25.5617 0.525289C25.5141 0.443589 25.4218 0.40133 25.3294 0.41542C20.2584 1.2888 15.4057 2.8186 10.8776 4.8978C10.8384 4.9147 10.8048 4.9429 10.7825 4.9795C1.57795 18.7309 -0.943561 32.1443 0.293408 45.3914C0.299005 45.4562 0.335386 45.5182 0.385761 45.5576C6.45866 50.0174 12.3413 52.7249 18.1147 54.5195C18.2071 54.5477 18.305 54.5139 18.3638 54.4378C19.7295 52.5728 20.9469 50.6063 21.9907 48.5383C22.0523 48.4172 21.9935 48.2735 21.8676 48.2256C19.9366 47.4931 18.0979 46.6 16.3292 45.5858C16.1893 45.5041 16.1781 45.304 16.3068 45.2082C16.679 44.9293 17.0513 44.6391 17.4067 44.3461C17.471 44.2926 17.5606 44.2813 17.6362 44.3151C29.2558 49.6202 41.8354 49.6202 53.3179 44.3151C53.3935 44.2785 53.4831 44.2898 53.5502 44.3433C53.9057 44.6363 54.2779 44.9293 54.6529 45.2082C54.7816 45.304 54.7732 45.5041 54.6333 45.5858C52.8646 46.6197 51.0259 47.4931 49.0921 48.2228C48.9662 48.2707 48.9102 48.4172 48.9718 48.5383C50.038 50.6034 51.2554 52.5699 52.5959 54.435C52.6519 54.5139 52.7526 54.5477 52.845 54.5195C58.6464 52.7249 64.529 50.0174 70.6019 45.5576C70.6551 45.5182 70.6887 45.459 70.6943 45.3942C72.1747 30.0791 68.2147 16.7757 60.1968 4.9823C60.1772 4.9429 60.1437 4.9147 60.1045 4.8978ZM23.7259 37.3253C20.2276 37.3253 17.3451 34.1136 17.3451 30.1693C17.3451 26.225 20.1717 23.0133 23.7259 23.0133C27.308 23.0133 30.1626 26.2532 30.1066 30.1693C30.1066 34.1136 27.28 37.3253 23.7259 37.3253ZM47.3178 37.3253C43.8196 37.3253 40.9371 34.1136 40.9371 30.1693C40.9371 26.225 43.7636 23.0133 47.3178 23.0133C50.9 23.0133 53.7545 26.2532 53.6986 30.1693C53.6986 34.1136 50.9 37.3253 47.3178 37.3253Z"/>
+              </g>
+            </svg>
+          ),
+          color: 'text-indigo-400 hover:text-indigo-300',
+          bgColor: 'bg-indigo-500/10 hover:bg-indigo-500/20',
+          borderColor: 'border-indigo-500/30',
+          displayName: 'Discord',
+        },
+        
+        // Instagram
+        'instagram.com': {
+          name: 'Instagram',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            </svg>
+          ),
+          color: 'text-pink-400 hover:text-pink-300',
+          bgColor: 'bg-pink-500/10 hover:bg-pink-500/20',
+          borderColor: 'border-pink-500/30',
+          extractUsername: (url) => {
+            const match = url.match(/instagram\.com\/([^/?]+)/)
+            return match ? `@${match[1]}` : 'Instagram'
+          }
+        },
+        
+        // Twitch
+        'twitch.tv': {
+          name: 'Twitch',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-3.582-9.253v6.789h-2.149v-6.789h2.149zm-5.731 0v6.789h-2.149v-6.789h2.149z"/>
+            </svg>
+          ),
+          color: 'text-purple-400 hover:text-purple-300',
+          bgColor: 'bg-purple-500/10 hover:bg-purple-500/20',
+          borderColor: 'border-purple-500/30',
+          extractUsername: (url) => {
+            const match = url.match(/twitch\.tv\/([^/?]+)/)
+            return match ? `@${match[1]}` : 'Twitch'
+          }
+        },
+        
+        // YouTube
+        'youtube.com': {
+          name: 'YouTube',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+          ),
+          color: 'text-red-400 hover:text-red-300',
+          bgColor: 'bg-red-500/10 hover:bg-red-500/20',
+          borderColor: 'border-red-500/30',
+          extractUsername: (url) => {
+            const channelMatch = url.match(/youtube\.com\/@([^/?]+)/)
+            const userMatch = url.match(/youtube\.com\/user\/([^/?]+)/)
+            const channelIdMatch = url.match(/youtube\.com\/channel\/([^/?]+)/)
+            
+            if (channelMatch) return `@${channelMatch[1]}`
+            if (userMatch) return `@${userMatch[1]}`
+            if (channelIdMatch) return 'YouTube Channel'
+            return 'YouTube'
+          }
+        },
+        'youtu.be': {
+          name: 'YouTube',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+          ),
+          color: 'text-red-400 hover:text-red-300',
+          bgColor: 'bg-red-500/10 hover:bg-red-500/20',
+          borderColor: 'border-red-500/30',
+          displayName: 'YouTube Video'
+        },
+        
+        // Twitter/X
+        'twitter.com': {
+          name: 'Twitter',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+            </svg>
+          ),
+          color: 'text-blue-400 hover:text-blue-300',
+          bgColor: 'bg-blue-500/10 hover:bg-blue-500/20',
+          borderColor: 'border-blue-500/30',
+          extractUsername: (url) => {
+            const match = url.match(/twitter\.com\/([^/?]+)/)
+            return match ? `@${match[1]}` : 'Twitter'
+          }
+        },
+        'x.com': {
+          name: 'X (Twitter)',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          ),
+          color: 'text-gray-400 hover:text-gray-300',
+          bgColor: 'bg-gray-500/10 hover:bg-gray-500/20',
+          borderColor: 'border-gray-500/30',
+          extractUsername: (url) => {
+            const match = url.match(/x\.com\/([^/?]+)/)
+            return match ? `@${match[1]}` : 'X (Twitter)'
+          }
+        },
+        
+        // Spotify
+        'open.spotify.com': {
+          name: 'Spotify',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/>
+            </svg>
+          ),
+          color: 'text-green-400 hover:text-green-300',
+          bgColor: 'bg-green-500/10 hover:bg-green-500/20',
+          borderColor: 'border-green-500/30',
+          extractUsername: (url) => {
+            if (url.includes('/user/')) {
+              const match = url.match(/user\/([^/?]+)/)
+              return match ? `@${match[1]}` : 'Perfil Spotify'
+            }
+            if (url.includes('/playlist/')) return 'Playlist Spotify'
+            if (url.includes('/track/')) return 'Música Spotify'
+            if (url.includes('/album/')) return 'Álbum Spotify'
+            return 'Spotify'
+          }
+        },
+        
+        // TikTok
+        'tiktok.com': {
+          name: 'TikTok',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-.88-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+            </svg>
+          ),
+          color: 'text-pink-400 hover:text-pink-300',
+          bgColor: 'bg-pink-500/10 hover:bg-pink-500/20',
+          borderColor: 'border-pink-500/30',
+          extractUsername: (url) => {
+            const match = url.match(/tiktok\.com\/@([^/?]+)/)
+            return match ? `@${match[1]}` : 'TikTok'
+          }
+        },
+        
+        // Steam
+        'steamcommunity.com': {
+          name: 'Steam',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.624 0 11.999-5.375 11.999-12S18.603.001 11.979.001zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54z"/>
+            </svg>
+          ),
+          color: 'text-blue-400 hover:text-blue-300',
+          bgColor: 'bg-blue-500/10 hover:bg-blue-500/20',
+          borderColor: 'border-blue-500/30',
+          extractUsername: (url) => {
+            const profileMatch = url.match(/steamcommunity\.com\/profiles\/([^/?]+)/)
+            const idMatch = url.match(/steamcommunity\.com\/id\/([^/?]+)/)
+            
+            if (idMatch) return `@${idMatch[1]}`
+            if (profileMatch) return 'Perfil Steam'
+            return 'Steam'
+          }
+        },
+        
+        // GitHub
+        'github.com': {
+          name: 'GitHub',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          ),
+          color: 'text-gray-400 hover:text-gray-300',
+          bgColor: 'bg-gray-500/10 hover:bg-gray-500/20',
+          borderColor: 'border-gray-500/30',
+          extractUsername: (url) => {
+            const match = url.match(/github\.com\/([^/?]+)/)
+            return match ? `@${match[1]}` : 'GitHub'
+          }
+        },
+        
+        // Reddit
+        'reddit.com': {
+          name: 'Reddit',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/>
+            </svg>
+          ),
+          color: 'text-orange-400 hover:text-orange-300',
+          bgColor: 'bg-orange-500/10 hover:bg-orange-500/20',
+          borderColor: 'border-orange-500/30',
+          extractUsername: (url) => {
+            const userMatch = url.match(/reddit\.com\/u\/([^/?]+)/)
+            const subredditMatch = url.match(/reddit\.com\/r\/([^/?]+)/)
+            
+            if (userMatch) return `u/${userMatch[1]}`
+            if (subredditMatch) return `r/${subredditMatch[1]}`
+            return 'Reddit'
+          }
+        },
+        
+        // LinkedIn
+        'linkedin.com': {
+          name: 'LinkedIn',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          ),
+          color: 'text-blue-600 hover:text-blue-500',
+          bgColor: 'bg-blue-600/10 hover:bg-blue-600/20',
+          borderColor: 'border-blue-600/30',
+          extractUsername: (url) => {
+            const match = url.match(/linkedin\.com\/in\/([^/?]+)/)
+            return match ? `@${match[1]}` : 'LinkedIn'
+          }
+        },
+        
+        // VRChat
+        'vrchat.com': {
+          name: 'VRChat',
+          icon: (
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+          ),
+          color: 'text-orange-400 hover:text-orange-300',
+          bgColor: 'bg-orange-500/10 hover:bg-orange-500/20',
+          borderColor: 'border-orange-500/30',
+          displayName: 'VRChat Profile'
+        }
+      }
+
+      // Detecta a plataforma pelo domínio
+      const domain = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
+      
+      let platform = null
+      for (const [key, value] of Object.entries(socialPlatforms)) {
+        if (domain.includes(key)) {
+          platform = { ...value, domain: key }
+          break
+        }
+      }
+
+      // Se não encontrou plataforma conhecida, usa padrão
+      if (!platform) {
+        platform = {
+          name: 'Link Externo',
+          icon: <LinkIcon className="w-5 h-5" />,
+          color: 'text-gray-400 hover:text-gray-300',
+          bgColor: 'bg-gray-500/10 hover:bg-gray-500/20',
+          borderColor: 'border-gray-500/30',
+          displayName: domain.length > 20 ? domain.substring(0, 20) + '...' : domain
+        }
+      }
+
+      // Extrai nome de usuário se a plataforma suportar
+      let displayName = platform.displayName
+      if (platform.extractUsername) {
+        displayName = platform.extractUsername(url)
+      }
+      if (!displayName) {
+        displayName = platform.name
+      }
+
+      return {
+        url,
+        platform: platform.name,
+        icon: platform.icon,
+        displayName,
+        color: platform.color,
+        bgColor: platform.bgColor,
+        borderColor: platform.borderColor
+      }
+    }
+
     return (
       <AnimatePresence>
         <motion.div
@@ -653,26 +1162,59 @@ const VRChatAPIPage = () => {
                 </div>
               )}
 
+              {/* Idiomas */}
+              {(() => {
+                const languages = getLanguageInfo(friend.tags)
+                return languages.length > 0 && (
+                  <div className="bg-gray-700/50 rounded-lg p-4">
+                    <h3 className="text-white font-semibold mb-3 flex items-center">
+                      <GlobeAltIcon className="w-5 h-5 mr-2 text-green-400" />
+                      Idiomas
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {languages.map((lang, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2 px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400"
+                          title={lang.name}
+                        >
+                          {lang.flag}
+                          <span className="text-sm font-medium">{lang.code}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Bio Links */}
               {friend.bioLinks && friend.bioLinks.length > 0 && (
                 <div className="bg-gray-700/50 rounded-lg p-4">
                   <h3 className="text-white font-semibold mb-3 flex items-center">
                     <LinkIcon className="w-5 h-5 mr-2 text-blue-400" />
-                    Links
+                    Links Sociais
                   </h3>
-                  <div className="space-y-2">
-                    {friend.bioLinks.map((link, index) => (
-                      <a
-                        key={index}
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center text-blue-400 hover:text-blue-300 text-sm transition-colors"
-                      >
-                        <LinkIcon className="w-4 h-4 mr-2" />
-                        {link.replace(/^https?:\/\//, '')}
-                      </a>
-                    ))}
+                  <div className="flex flex-wrap gap-2">
+                    {friend.bioLinks.map((link, index) => {
+                      const socialLink = formatSocialLink(link)
+                      if (!socialLink) return null
+                      
+                      return (
+                        <a
+                          key={index}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`group flex items-center space-x-2 px-3 py-2 rounded-lg border transition-all duration-200 ${socialLink.bgColor} ${socialLink.borderColor} ${socialLink.color}`}
+                          title={`${socialLink.platform}: ${socialLink.displayName}`}
+                        >
+                          <div className="flex-shrink-0">
+                            {socialLink.icon}
+                          </div>
+                          <span className="text-sm font-medium">{socialLink.displayName}</span>
+                        </a>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -710,33 +1252,38 @@ const VRChatAPIPage = () => {
                 </div>
               </div>
 
-              {/* Tags do Usuário */}
-              {friend.tags && friend.tags.length > 0 && (
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h3 className="text-white font-semibold mb-3 flex items-center">
-                    <ShieldCheckIcon className="w-5 h-5 mr-2 text-yellow-400" />
-                    Conquistas & Acesso
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {friend.tags.map((tag, index) => {
-                      const isLanguage = tag.includes('language_')
-                      const isTrust = tag.includes('trust_')
-                      const isAccess = tag.includes('_access')
-                      
-                      let colorClass = 'bg-gray-600 text-gray-300'
-                      if (isLanguage) colorClass = 'bg-blue-600/30 text-blue-300 border-blue-500/30'
-                      else if (isTrust) colorClass = 'bg-green-600/30 text-green-300 border-green-500/30'
-                      else if (isAccess) colorClass = 'bg-purple-600/30 text-purple-300 border-purple-500/30'
-                      
-                      return (
-                        <span key={index} className={`px-2 py-1 text-xs rounded border ${colorClass}`}>
-                          {formatTag(tag)}
-                        </span>
-                      )
-                    })}
+              {/* Tags do Sistema - apenas trust levels e access */}
+              {friend.tags && (() => {
+                const systemTags = friend.tags.filter(tag => 
+                  (tag.includes('trust_') || tag.includes('_access')) && 
+                  !tag.includes('language_')
+                )
+                
+                return systemTags.length > 0 && (
+                  <div className="bg-gray-700/50 rounded-lg p-4">
+                    <h3 className="text-white font-semibold mb-3 flex items-center">
+                      <ShieldCheckIcon className="w-5 h-5 mr-2 text-yellow-400" />
+                      Trust & Acesso
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {systemTags.map((tag, index) => {
+                        const isTrust = tag.includes('trust_')
+                        const isAccess = tag.includes('_access')
+                        
+                        let colorClass = 'bg-gray-600/30 text-gray-300 border-gray-500/30'
+                        if (isTrust) colorClass = 'bg-green-600/20 text-green-300 border-green-500/30'
+                        else if (isAccess) colorClass = 'bg-purple-600/20 text-purple-300 border-purple-500/30'
+                        
+                        return (
+                          <span key={index} className={`px-3 py-1 text-sm rounded-lg border ${colorClass}`}>
+                            {formatTag(tag)}
+                          </span>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* Atividade */}
               <div className="bg-gray-700/50 rounded-lg p-4">
@@ -744,47 +1291,35 @@ const VRChatAPIPage = () => {
                   <ClockIcon className="w-5 h-5 mr-2 text-orange-400" />
                   Atividade
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-400">Última atividade:</p>
-                    <p className="text-white">{formatDate(friend.last_activity)}</p>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Última atividade:</span>
+                    <span className="text-white">{formatDate(friend.last_activity)}</span>
                   </div>
-                  <div>
-                    <p className="text-gray-400">Último login:</p>
-                    <p className="text-white">{formatDate(friend.last_login)}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Último login:</span>
+                    <span className="text-white">{formatDate(friend.last_login)}</span>
                   </div>
-                  {friend.last_mobile && (
-                    <div>
-                      <p className="text-gray-400">Último mobile:</p>
-                      <p className="text-white">{formatDate(friend.last_mobile)}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-gray-400">Plataforma:</p>
-                    <p className="text-white capitalize">
-                      {friend.last_platform?.replace('standalonewindows', 'PC (Windows)') || 'Desconhecida'}
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Plataforma:</span>
+                    <span className="text-white">
+                      {friend.last_platform?.replace('standalonewindows', 'PC') || 'Desconhecida'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* ID do Usuário */}
+              {/* ID do Usuário - mais compacto */}
               <div className="bg-gray-700/50 rounded-lg p-4">
                 <h3 className="text-white font-semibold mb-3 flex items-center">
                   <Cog6ToothIcon className="w-5 h-5 mr-2 text-gray-400" />
-                  Informações Técnicas
+                  ID do Usuário
                 </h3>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <p className="text-gray-400">ID do Usuário:</p>
-                    <p className="text-white font-mono text-xs bg-gray-800 p-2 rounded break-all">{friend.id}</p>
-                  </div>
-                  {friend.friendKey && (
-                    <div>
-                      <p className="text-gray-400">Chave de Amizade:</p>
-                      <p className="text-white font-mono text-xs bg-gray-800 p-2 rounded break-all">{friend.friendKey}</p>
-                    </div>
-                  )}
+                <div className="text-sm">
+                  <p className="text-gray-400 mb-1">User ID:</p>
+                  <p className="text-white font-mono text-xs bg-gray-800/50 p-2 rounded break-all">
+                    {friend.id}
+                  </p>
                 </div>
               </div>
 
