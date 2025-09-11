@@ -202,10 +202,10 @@ const VRChatAPIPage = () => {
         setDashboardData(result.data)
         setLastRefresh(new Date())
       } else {
-        console.error('❌ loadDashboardData: Falha:', result.error)
+        console.error('loadDashboardData: Falha:', result.error)
       }
     } catch (error) {
-      console.error('❌ loadDashboardData: Erro ao carregar dashboard:', error)
+      console.error('loadDashboardData: Erro ao carregar dashboard:', error)
     } finally {
       setLoadingDashboard(false)
     }
@@ -721,7 +721,7 @@ const VRChatAPIPage = () => {
                 }}
                 className="text-gray-400 hover:text-white transition-colors"
               >
-                ✕
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             
@@ -1450,7 +1450,7 @@ const VRChatAPIPage = () => {
                 onClick={() => setSelectedNode(null)}
                 className="text-gray-400 hover:text-white transition-colors"
               >
-                ✕
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             
@@ -1939,7 +1939,7 @@ const VRChatAPIPage = () => {
   // Componente de amigo individual
   const FriendCard = ({ friend }) => {
     if (!friend) {
-      console.warn('⚠️ FriendCard: friend object é null/undefined')
+      console.warn('FriendCard: friend object é null/undefined')
       return null
     }
     
@@ -3150,9 +3150,9 @@ const VRChatAPIPage = () => {
                               connection.vrchatStatus === 'active' ? 'bg-blue-600 text-blue-100' :
                               'bg-gray-600 text-gray-300'
                             }`}>
-                              {connection.vrchatStatus === 'online' ? '🟢 Online' :
+                              {connection.vrchatStatus === 'online' ? 'Online' :
                                connection.vrchatStatus === 'active' ? 'Ativo' :
-                               '⚫ Offline'}
+                               'Offline'}
                             </span>
                           </div>
                         </div>
@@ -3442,8 +3442,8 @@ const VRChatAPIPage = () => {
                                       <p className="text-white font-medium">{log.friendName}</p>
                                       <div className="flex items-center space-x-2">
                                         {log.priority === 'high' && <span className="text-red-400 text-xs">Alto</span>}
-                                        {log.priority === 'medium' && <span className="text-yellow-400 text-xs">🟡 Médio</span>}
-                                        {log.priority === 'low' && <span className="text-gray-400 text-xs">⚪ Baixo</span>}
+                                        {log.priority === 'medium' && <span className="text-yellow-400 text-xs">Médio</span>}
+                                        {log.priority === 'low' && <span className="text-gray-400 text-xs">Baixo</span>}
                                         <span className="text-xs text-gray-400">
                                           {new Date(log.timestamp).toLocaleString('pt-BR')}
                                         </span>
@@ -4368,14 +4368,14 @@ const WorldExplorer = () => {
       
       if (featured?.success) {
         setFeaturedWorlds(featured.data?.worlds || [])
-        console.log('⭐ Mundos em destaque carregados:', featured.data?.worlds?.length || 0)
+        console.log('Mundos em destaque carregados:', featured.data?.worlds?.length || 0)
       }
       if (popular?.success) {
         setPopularWorlds(popular.data?.worlds || [])
         console.log('Mundos populares carregados:', popular.data?.worlds?.length || 0)
       }
     } catch (err) {
-      console.error('❌ Erro ao carregar dados iniciais:', err)
+      console.error('Erro ao carregar dados iniciais:', err)
       setError('Erro ao carregar mundos')
     } finally {
       setLoading(false)
@@ -4468,8 +4468,9 @@ const WorldExplorer = () => {
           )}
           
           {featured && (
-            <div className="absolute top-2 left-2 bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold">
-              ⭐ Destaque
+            <div className="absolute top-2 left-2 bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+              <StarIcon className="w-3 h-3" />
+              Destaque
             </div>
           )}
           
