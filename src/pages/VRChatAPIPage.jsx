@@ -25,7 +25,18 @@ import {
   PlayIcon,
   XMarkIcon,
   Cog6ToothIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  DocumentTextIcon,
+  DocumentIcon,
+  UserCircleIcon,
+  TagIcon,
+  CheckIcon,
+  LockClosedIcon,
+  AcademicCapIcon,
+  MapPinIcon,
+  ArrowDownTrayIcon,
+  ClipboardIcon,
+  StarIcon
 } from '@heroicons/react/24/outline'
 
 const VRChatAPIPage = () => {
@@ -172,23 +183,20 @@ const VRChatAPIPage = () => {
   const loadDashboardData = async () => {
     if (loadingDashboard) return
     
-    console.log('🔄 loadDashboardData: Iniciando carregamento...')
+
     setLoadingDashboard(true)
     try {
       const result = await getDashboardData()
-      console.log('📦 loadDashboardData: Resultado completo:', result)
+
       
       if (result.success) {
-        console.log('✅ loadDashboardData: Dados recebidos:', result.data)
-        console.log('👥 loadDashboardData: Friends data:', result.data.friends)
-        console.log('🌍 loadDashboardData: Recent worlds:', result.data.recentWorlds)
+
+
+
         
         // Detectar mudanças nos amigos antes de atualizar o estado
         if (result.data.friends && Array.isArray(result.data.friends)) {
-          console.log('🔍 Detectando mudanças nos amigos:', result.data.friends.length, 'amigos')
           detectFriendChanges(result.data.friends)
-        } else {
-          console.log('⚠️ Dados de amigos não são um array:', typeof result.data.friends)
         }
         
         setDashboardData(result.data)
@@ -265,7 +273,6 @@ const VRChatAPIPage = () => {
 
   // Função para abrir modal de detalhes do amigo
   const openFriendModal = (friend) => {
-    console.log('👤 Abrindo modal do amigo:', friend)
     setSelectedFriend(friend)
     setShowFriendModal(true)
   }
@@ -371,12 +378,8 @@ const VRChatAPIPage = () => {
   // Função para ordenar amigos por status (online primeiro, offline por último)
   const sortFriendsByStatus = (friends) => {
     if (!friends || !Array.isArray(friends)) {
-      console.log('🔍 sortFriendsByStatus: friends não é array válido:', friends)
       return []
     }
-    
-    console.log('🔄 sortFriendsByStatus: Ordenando', friends.length, 'amigos')
-    console.log('🔍 Status originais:', friends.map(f => ({ name: f.displayName, status: f.status })))
     
     const statusPriority = {
       'online': 1,
@@ -399,7 +402,7 @@ const VRChatAPIPage = () => {
       return a.displayName.localeCompare(b.displayName)
     })
     
-    console.log('✅ Amigos ordenados:', sortedFriends.map(f => ({ name: f.displayName, status: f.status, priority: statusPriority[f.status] || 10 })))
+
     
     return sortedFriends
   }
@@ -407,18 +410,18 @@ const VRChatAPIPage = () => {
   // Calcula estatísticas dos amigos
   const getFriendsStats = (friends) => {
     if (!friends || !Array.isArray(friends)) {
-      console.log('🔍 getFriendsStats: friends não é array válido:', friends)
+
       return { online: 0, offline: 0, total: 0 }
     }
     
-    console.log('📊 getFriendsStats: Analisando', friends.length, 'amigos')
-    console.log('📊 Status dos amigos:', friends.map(f => ({ name: f.displayName, status: f.status })))
+
+
     
     const online = friends.filter(f => ['online', 'join me', 'ask me', 'active', 'busy'].includes(f.status)).length
     const offline = friends.filter(f => f.status === 'offline').length
     
     const stats = { online, offline, total: friends.length }
-    console.log('📊 Estatísticas calculadas:', stats)
+
     
     return stats
   }
@@ -542,8 +545,11 @@ const VRChatAPIPage = () => {
       <div className="relative">
         {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">
-          <div className="text-sm text-gray-400">
-            🔥 Mapa de calor semanal • {logs.length} atividades • Pico: {maxActivity} atividades/hora
+          <div className="text-sm text-gray-400 flex items-center space-x-2">
+            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>Mapa de calor semanal • {logs.length} atividades • Pico: {maxActivity} atividades/hora</span>
           </div>
           <div className="flex items-center space-x-4">
             {/* Legenda de cores */}
@@ -706,7 +712,7 @@ const VRChatAPIPage = () => {
           <div className="mt-6 bg-gray-700 rounded-xl p-4 border-l-4 border-orange-500">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-white font-semibold">
-                📍 {dayNames[selectedDay]} {selectedHour}:00 - {selectedHour + 1}:00
+                <MapPinIcon className="w-4 h-4 mr-1" /> {dayNames[selectedDay]} {selectedHour}:00 - {selectedHour + 1}:00
               </h4>
               <button
                 onClick={() => {
@@ -732,14 +738,14 @@ const VRChatAPIPage = () => {
                       .map(([type, count]) => (
                         <div key={type} className="flex justify-between text-xs">
                           <span className="text-gray-300">
-                            {type === 'status_change' && '🔄 Status'}
-                            {type === 'world_change' && '🌍 Mundos'}
-                            {type === 'avatar_change' && '👤 Avatars'}
-                            {type === 'description_change' && '📝 Descrição'}
-                            {type === 'bio_change' && '📄 Bio'}
-                            {type === 'came_online' && '✅ Online'}
-                            {type === 'went_offline' && '😴 Offline'}
-                            {type === 'joined_private' && '🔒 Privado'}
+                            {type === 'status_change' && 'Status'}
+                            {type === 'world_change' && 'Mundos'}
+                            {type === 'avatar_change' && 'Avatars'}
+                            {type === 'description_change' && 'Descrição'}
+                            {type === 'bio_change' && 'Bio'}
+                            {type === 'came_online' && 'Online'}
+                            {type === 'went_offline' && 'Offline'}
+                            {type === 'joined_private' && 'Privado'}
                           </span>
                           <span className="text-white font-medium">{count}</span>
                         </div>
@@ -1115,7 +1121,7 @@ const VRChatAPIPage = () => {
         {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">
           <div className="text-sm text-gray-400">
-            🌐 {friends.length} amigos conectados • {logs.length} atividades
+            <GlobeAltIcon className="w-4 h-4 mr-1" /> {friends.length} amigos conectados • {logs.length} atividades
           </div>
           <button
             onClick={() => setSelectedFriend(null)}
@@ -1124,7 +1130,7 @@ const VRChatAPIPage = () => {
             }`}
             disabled={!selectedFriend}
           >
-            🔄 Resetar seleção
+            Resetar seleção
           </button>
         </div>
         
@@ -1263,10 +1269,10 @@ const VRChatAPIPage = () => {
                     .map(([type, count]) => (
                       <div key={type} className="flex items-center justify-between">
                         <span className="text-xs text-gray-300">
-                          {type === 'status_change' && '🔄 Status'}
-                          {type === 'world_change' && '🌍 Mundos'}
-                          {type === 'avatar_change' && '👤 Avatars'}
-                          {type === 'description_change' && '📝 Descrição'}
+                          {type === 'status_change' && 'Status'}
+                          {type === 'world_change' && 'Mundos'}
+                          {type === 'avatar_change' && 'Avatars'}
+                          {type === 'description_change' && 'Descrição'}
                         </span>
                         <div className="flex items-center space-x-2">
                           <div className="w-16 bg-gray-600 rounded-full h-2">
@@ -1363,7 +1369,7 @@ const VRChatAPIPage = () => {
         {/* Cabeçalho do Flow Map */}
         <div className="flex items-center justify-between mb-6">
           <div className="text-sm text-gray-400">
-            📍 {sortedNodes.length} nós temporais • {logs.length} atividades
+            <MapPinIcon className="w-4 h-4 mr-1" /> {sortedNodes.length} nós temporais • {logs.length} atividades
           </div>
           <div className="flex items-center space-x-4 text-xs">
             <div className="flex items-center space-x-1">
@@ -1437,7 +1443,9 @@ const VRChatAPIPage = () => {
         {selectedNode && timeNodes[selectedNode] && (
           <div className="mt-6 bg-gray-700 rounded-xl p-4 border-l-4 border-purple-500">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-white font-semibold">🕐 {selectedNode}</h4>
+              <h4 className="text-white font-semibold flex items-center gap-2">
+                <ClockIcon className="w-4 h-4" /> {selectedNode}
+              </h4>
               <button
                 onClick={() => setSelectedNode(null)}
                 className="text-gray-400 hover:text-white transition-colors"
@@ -1458,14 +1466,14 @@ const VRChatAPIPage = () => {
                   {Object.entries(timeNodes[selectedNode].types).map(([type, count]) => (
                     <div key={type} className="flex justify-between">
                       <span className="text-gray-300">
-                        {type === 'status_change' && '🔄 Status'}
-                        {type === 'world_change' && '🌍 Mundos'}
-                        {type === 'avatar_change' && '👤 Avatars'}
-                        {type === 'description_change' && '📝 Descrição'}
-                        {type === 'bio_change' && '📄 Bio'}
-                        {type === 'came_online' && '✅ Online'}
-                        {type === 'went_offline' && '😴 Offline'}
-                        {type === 'joined_private' && '🔒 Privado'}
+                        {type === 'status_change' && 'Status'}
+                        {type === 'world_change' && 'Mundos'}
+                        {type === 'avatar_change' && 'Avatars'}
+                        {type === 'description_change' && 'Descrição'}
+                        {type === 'bio_change' && 'Bio'}
+                        {type === 'came_online' && 'Online'}
+                        {type === 'went_offline' && 'Offline'}
+                        {type === 'joined_private' && 'Privado'}
                       </span>
                       <span className="text-white font-medium">{count}</span>
                     </div>
@@ -1561,12 +1569,12 @@ const VRChatAPIPage = () => {
           timestamp: now
         })
         
-        // Log de primeiro registro (apenas para debug)
-        console.log(`📝 Primeira detecção do amigo: ${friend.displayName}`)
+        // Primeiro registro do amigo
+
         return
       }
       
-      // 🔍 INVESTIGAÇÃO DETALHADA - Detectar TODAS as mudanças possíveis
+      // INVESTIGAÇÃO DETALHADA - Detectar TODAS as mudanças possíveis
       
       // 1. Mudanças de STATUS
       if (previousState.status !== friend.status) {
@@ -1810,7 +1818,7 @@ const VRChatAPIPage = () => {
     
     // Adicionar novos logs ao início do array (mais recente primeiro)
     if (newLogs.length > 0) {
-      console.log(`🔍 Detectadas ${newLogs.length} mudanças nos amigos:`, newLogs)
+
       setActivityLogs(prev => [...newLogs, ...prev].slice(0, 500)) // Manter 500 logs para análise detalhada
     }
   }
@@ -2025,7 +2033,7 @@ const VRChatAPIPage = () => {
               {/* World location */}
               {worldLocation && worldLocation !== 'offline' && worldLocation !== 'private' && (
                 <p className="text-gray-500 text-xs truncate flex items-center">
-                  <span className="mr-1">📍</span>
+                  <MapPinIcon className="w-4 h-4 mr-1" />
                   {worldLocation}
                 </p>
               )}
@@ -3143,7 +3151,7 @@ const VRChatAPIPage = () => {
                               'bg-gray-600 text-gray-300'
                             }`}>
                               {connection.vrchatStatus === 'online' ? '🟢 Online' :
-                               connection.vrchatStatus === 'active' ? '🔵 Ativo' :
+                               connection.vrchatStatus === 'active' ? 'Ativo' :
                                '⚫ Offline'}
                             </span>
                           </div>
@@ -3181,13 +3189,9 @@ const VRChatAPIPage = () => {
                     <div className="bg-gray-800 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-white">Mundos Recentes</h3>
-                        {dashboardData.recentWorlds.mock !== undefined && (
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            dashboardData.recentWorlds.mock 
-                              ? 'bg-yellow-600/30 text-yellow-300' 
-                              : 'bg-green-600/30 text-green-300'
-                          }`}>
-                            {dashboardData.recentWorlds.mock ? '📋 Demo' : '🔗 Real'}
+                        {!dashboardData.recentWorlds.worlds?.length && (
+                          <div className="px-2 py-1 rounded-full text-xs font-medium bg-gray-600/30 text-gray-400">
+                            Sem conexão
                           </div>
                         )}
                       </div>
@@ -3237,7 +3241,8 @@ const VRChatAPIPage = () => {
                           disabled={activityLogs.length === 0}
                           className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center"
                         >
-                          📥 Exportar
+                          <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                          Exportar
                         </button>
                         <button
                           onClick={loadDashboardData}
@@ -3251,7 +3256,7 @@ const VRChatAPIPage = () => {
                             </>
                           ) : (
                             <>
-                              🔄 Atualizar
+                              Atualizar
                             </>
                           )}
                         </button>
@@ -3268,18 +3273,18 @@ const VRChatAPIPage = () => {
                           className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                         >
                           <option value="all">Todas as atividades</option>
-                          <option value="status_change">🔄 Mudanças de status</option>
-                          <option value="description_change">📝 Mudanças de descrição</option>
-                          <option value="bio_change">📄 Mudanças de bio</option>
-                          <option value="world_change">🌍 Mudanças de mundo</option>
-                          <option value="went_offline">😴 Ficou offline</option>
-                          <option value="came_online">✅ Ficou online</option>
-                          <option value="joined_private">🔒 Entrou em privado</option>
-                          <option value="avatar_change">👤 Mudanças de avatar</option>
-                          <option value="current_avatar_change">🎭 Avatar atual alterado</option>
-                          <option value="profile_picture_change">🖼️ Foto de perfil</option>
-                          <option value="tags_change">🏷️ Tags/badges alteradas</option>
-                          <option value="developer_type_change">💻 Tipo desenvolvedor</option>
+                          <option value="status_change">Mudanças de status</option>
+                          <option value="description_change">Mudanças de descrição</option>
+                          <option value="bio_change">Mudanças de bio</option>
+                          <option value="world_change">Mudanças de mundo</option>
+                          <option value="went_offline">Ficou offline</option>
+                          <option value="came_online">Ficou online</option>
+                          <option value="joined_private">Entrou em privado</option>
+                          <option value="avatar_change">Mudanças de avatar</option>
+                          <option value="current_avatar_change">Avatar atual alterado</option>
+                          <option value="profile_picture_change">Foto de perfil</option>
+                          <option value="tags_change">Tags/badges alteradas</option>
+                          <option value="developer_type_change">Tipo desenvolvedor</option>
                           <option value="activity_update">⏰ Atividade atualizada</option>
                         </select>
                       </div>
@@ -3320,7 +3325,8 @@ const VRChatAPIPage = () => {
                   <div className="bg-gray-800 rounded-xl p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold text-white flex items-center">
-                        🎛️ Modo de Visualização
+                        <Cog6ToothIcon className="w-4 h-4 mr-2" />
+                        Modo de Visualização
                       </h3>
                       <div className="flex items-center space-x-2">
                         <button
@@ -3331,7 +3337,8 @@ const VRChatAPIPage = () => {
                               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                         >
-                          📋 Lista Timeline
+                          <ClipboardIcon className="w-4 h-4 mr-2" />
+                          Lista Timeline
                         </button>
                         <button
                           onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'flowmap' }))}
@@ -3341,7 +3348,8 @@ const VRChatAPIPage = () => {
                               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                         >
-                          🗺️ Mapa de Fluxo
+                          <MapIcon className="w-4 h-4 mr-2" />
+                          Mapa de Fluxo
                         </button>
                         <button
                           onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'network' }))}
@@ -3351,7 +3359,8 @@ const VRChatAPIPage = () => {
                               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                         >
-                          🌐 Rede Neural
+                          <GlobeAltIcon className="w-4 h-4 mr-2" />
+                          Rede Neural
                         </button>
                         <button
                           onClick={() => setActivityFilters(prev => ({ ...prev, viewMode: 'heatmap' }))}
@@ -3361,7 +3370,8 @@ const VRChatAPIPage = () => {
                               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                         >
-                          🔥 Mapa de Calor
+                          <ChartBarIcon className="w-4 h-4 mr-2" />
+                          Mapa de Calor
                         </button>
                       </div>
                     </div>
@@ -3370,10 +3380,10 @@ const VRChatAPIPage = () => {
                   {/* Visualização de Atividades */}
                   <div className="bg-gray-800 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                      {activityFilters.viewMode === 'timeline' && '📅 Timeline de Atividades'}
-                      {activityFilters.viewMode === 'flowmap' && '🗺️ Mapa de Fluxo Temporal'}
-                      {activityFilters.viewMode === 'network' && '🌐 Rede Neural de Atividades'}
-                      {activityFilters.viewMode === 'heatmap' && '🔥 Mapa de Calor de Atividades'}
+                      {activityFilters.viewMode === 'timeline' && 'Timeline de Atividades'}
+                      {activityFilters.viewMode === 'flowmap' && 'Mapa de Fluxo Temporal'}
+                      {activityFilters.viewMode === 'network' && 'Rede Neural de Atividades'}
+                      {activityFilters.viewMode === 'heatmap' && 'Mapa de Calor de Atividades'}
                     </h3>
                     
                     {activityLogs.length === 0 ? (
@@ -3431,7 +3441,7 @@ const VRChatAPIPage = () => {
                                     <div className="flex items-center justify-between">
                                       <p className="text-white font-medium">{log.friendName}</p>
                                       <div className="flex items-center space-x-2">
-                                        {log.priority === 'high' && <span className="text-red-400 text-xs">🔴 Alto</span>}
+                                        {log.priority === 'high' && <span className="text-red-400 text-xs">Alto</span>}
                                         {log.priority === 'medium' && <span className="text-yellow-400 text-xs">🟡 Médio</span>}
                                         {log.priority === 'low' && <span className="text-gray-400 text-xs">⚪ Baixo</span>}
                                         <span className="text-xs text-gray-400">
@@ -3444,7 +3454,7 @@ const VRChatAPIPage = () => {
                                       {log.type === 'status_change' && (
                                         <div className="space-y-1">
                                           <p className="text-sm text-gray-300">
-                                            🔄 <span className="text-yellow-400">{log.details.from}</span> → <span className="text-green-400">{log.details.to}</span>
+                                             <span className="text-yellow-400">{log.details.from}</span> → <span className="text-green-400">{log.details.to}</span>
                                           </p>
                                           <p className="text-xs text-gray-500">{log.details.context}</p>
                                         </div>
@@ -3502,7 +3512,7 @@ const VRChatAPIPage = () => {
                           <p className="text-2xl font-bold text-white">{activityLogs.length}</p>
                         </div>
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                          📊
+                          <ChartBarIcon className="w-5 h-5 text-white" />
                         </div>
                       </div>
                     </div>
@@ -3516,7 +3526,7 @@ const VRChatAPIPage = () => {
                           </p>
                         </div>
                         <div className="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center">
-                          🔄
+                          <ArrowPathIcon className="w-5 h-5 text-white" />
                         </div>
                       </div>
                     </div>
@@ -3530,7 +3540,7 @@ const VRChatAPIPage = () => {
                           </p>
                         </div>
                         <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                          🌍
+                          <GlobeAltIcon className="w-5 h-5 text-white" />
                         </div>
                       </div>
                     </div>
@@ -3544,7 +3554,7 @@ const VRChatAPIPage = () => {
                           </p>
                         </div>
                         <div className="w-8 h-8 bg-pink-600 rounded-lg flex items-center justify-center">
-                          👤
+                          <UserIcon className="w-5 h-5 text-white" />
                         </div>
                       </div>
                     </div>
@@ -3558,7 +3568,7 @@ const VRChatAPIPage = () => {
                           </p>
                         </div>
                         <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-                          📝
+                          <DocumentTextIcon className="w-5 h-5 text-white" />
                         </div>
                       </div>
                     </div>
@@ -3567,7 +3577,8 @@ const VRChatAPIPage = () => {
                   {/* Análise de Atividade por Amigo */}
                   <div className="bg-gray-800 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                      👥 Análise por Amigo (Top 10 mais ativos)
+                      <UserGroupIcon className="w-4 h-4 mr-2" />
+                      Análise por Amigo (Top 10 mais ativos)
                     </h3>
                     <div className="space-y-3">
                       {Object.entries(
@@ -3607,17 +3618,17 @@ const VRChatAPIPage = () => {
                                 .slice(0, 3)
                                 .map(([type, count]) => (
                                   <span key={type} className="bg-gray-600 px-2 py-1 rounded">
-                                    {type === 'status_change' && '🔄'}
-                                    {type === 'world_change' && '🌍'}
-                                    {type === 'avatar_change' && '👤'}
-                                    {type === 'description_change' && '📝'}
-                                    {type === 'bio_change' && '📄'}
-                                    {type === 'current_avatar_change' && '🎭'}
-                                    {type === 'profile_picture_change' && '🖼️'}
-                                    {type === 'tags_change' && '🏷️'}
-                                    {type === 'came_online' && '✅'}
-                                    {type === 'went_offline' && '😴'}
-                                    {type === 'joined_private' && '🔒'}
+                                    {type === 'status_change' && <ArrowPathIcon className="w-4 h-4" />}
+                                    {type === 'world_change' && <GlobeAltIcon className="w-4 h-4" />}
+                                    {type === 'avatar_change' && <UserIcon className="w-4 h-4" />}
+                                    {type === 'description_change' && <DocumentTextIcon className="w-4 h-4" />}
+                                    {type === 'bio_change' && <DocumentIcon className="w-4 h-4" />}
+                                    {type === 'current_avatar_change' && <UserCircleIcon className="w-4 h-4" />}
+                                    {type === 'profile_picture_change' && <PhotoIcon className="w-4 h-4" />}
+                                    {type === 'tags_change' && <TagIcon className="w-4 h-4" />}
+                                    {type === 'came_online' && <CheckIcon className="w-4 h-4" />}
+                                    {type === 'went_offline' && <XMarkIcon className="w-4 h-4" />}
+                                    {type === 'joined_private' && <LockClosedIcon className="w-4 h-4" />}
                                     {count}
                                   </span>
                                 ))}
@@ -3765,7 +3776,7 @@ const VRChatAPIPage = () => {
                             <option value="all">Todas Localizações</option>
                             <option value="in-world">Em Mundo</option>
                             <option value="private">Privado</option>
-                            <option value="offline">😴 Offline</option>
+                            <option value="offline">Offline</option>
                           </select>
                         </div>
                         
@@ -4160,23 +4171,21 @@ const VRChatAPIPage = () => {
                       )
                     })()}
                   </div>
-                  {dashboardData?.friends?.mock !== undefined && (
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      dashboardData.friends.mock 
-                        ? 'bg-yellow-600/30 text-yellow-300' 
-                        : 'bg-green-600/30 text-green-300'
-                    }`}>
-                      {dashboardData.friends.mock ? '📋 Mock' : '🔗 Real'}
+                  {!dashboardData?.friends?.friends?.length && (
+                    <div className="px-2 py-1 rounded-full text-xs font-medium bg-gray-600/30 text-gray-400">
+                      Sem conexão
                     </div>
                   )}
                 </div>
                 
-                {/* Debug info - apenas em desenvolvimento */}
+
                 {dashboardData?.friends && process.env.NODE_ENV === 'development' && (
                   <div className="mb-3 p-2 bg-gray-900/30 rounded text-xs text-gray-500 border-l-2 border-blue-500/30">
                     <div className="flex items-center justify-between">
                       <span>� {dashboardData.friends.total || 0} total | {dashboardData.friends.mock ? 'Mock' : 'Real'}</span>
-                      <span>👥 {dashboardData.friends.friends?.length || 0} carregados</span>
+                      <span className="flex items-center gap-1">
+                        <UserGroupIcon className="w-4 h-4" /> {dashboardData.friends.friends?.length || 0} carregados
+                      </span>
                     </div>
                   </div>
                 )}
@@ -4238,17 +4247,16 @@ const VRChatAPIPage = () => {
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     <AnimatePresence>
                       {(() => {
-                        console.log('🔍 Renderização: dashboardData?.friends:', dashboardData?.friends)
-                        console.log('🔍 Renderização: dashboardData?.friends?.friends:', dashboardData?.friends?.friends)
+
+
                         
                         const friendsArray = dashboardData?.friends?.friends
                         const sortedFriends = sortFriendsByStatus(friendsArray)
                         
-                        console.log('🔍 Renderização: friendsArray final:', friendsArray)
-                        console.log('🔍 Renderização: sortedFriends final:', sortedFriends)
+
+
                         
                         if (!sortedFriends || sortedFriends.length === 0) {
-                          console.log('⚠️ Renderização: Nenhum amigo para renderizar')
                           return (
                             <p className="text-center text-gray-400 text-sm py-4">
                               {dashboardData?.friends ? 'Lista de amigos vazia' : 'Dados de amigos não carregados'}
@@ -4311,12 +4319,12 @@ const WorldExplorer = () => {
   const categories = [
     { id: 'all', label: 'Todos', icon: GlobeAltIcon },
     { id: 'social', label: 'Social', icon: UserGroupIcon },
-    { id: 'games', label: 'Jogos', icon: '🎮' },
-    { id: 'art', label: 'Arte', icon: '🎨' },
-    { id: 'music', label: 'Música', icon: '🎵' },
+    { id: 'games', label: 'Jogos', icon: DeviceTabletIcon },
+    { id: 'art', label: 'Arte', icon: PhotoIcon },
+    { id: 'music', label: 'Música', icon: BoltIcon },
     { id: 'avatar', label: 'Avatar', icon: UserIcon },
-    { id: 'roleplay', label: 'Roleplay', icon: '🎭' },
-    { id: 'education', label: 'Educação', icon: '📚' }
+    { id: 'roleplay', label: 'Roleplay', icon: UserCircleIcon },
+    { id: 'education', label: 'Educação', icon: AcademicCapIcon }
   ]
 
   // Opções de ordenação
@@ -4349,14 +4357,14 @@ const WorldExplorer = () => {
     setLoading(true)
     setError(null)
     try {
-      console.log('🔄 Carregando dados iniciais do World Explorer...')
+      console.log('Carregando dados iniciais do World Explorer...')
       
       const [featured, popular] = await Promise.all([
         getFeaturedWorlds(),
         getPopularWorlds()
       ])
       
-      console.log('📊 Dados carregados:', { featured, popular })
+      console.log('Dados carregados:', { featured, popular })
       
       if (featured?.success) {
         setFeaturedWorlds(featured.data?.worlds || [])
@@ -4364,7 +4372,7 @@ const WorldExplorer = () => {
       }
       if (popular?.success) {
         setPopularWorlds(popular.data?.worlds || [])
-        console.log('🔥 Mundos populares carregados:', popular.data?.worlds?.length || 0)
+        console.log('Mundos populares carregados:', popular.data?.worlds?.length || 0)
       }
     } catch (err) {
       console.error('❌ Erro ao carregar dados iniciais:', err)
@@ -4394,11 +4402,11 @@ const WorldExplorer = () => {
         n: 24
       }
       
-      console.log('🔍 Executando busca:', { query: searchQuery.trim(), options })
+      console.log('Executando busca:', { query: searchQuery.trim(), options })
       
       const result = await searchWorlds(searchQuery.trim() || '', options)
       
-      console.log('📋 Resultado da busca:', result)
+      console.log('Resultado da busca:', result)
       
       if (result.success) {
         setSearchResults(result.data.worlds || [])
@@ -4469,20 +4477,20 @@ const WorldExplorer = () => {
           <div className="absolute top-2 right-2 flex flex-col gap-1">
             {world.capacity && (
               <div className="bg-black/70 text-white px-2 py-1 rounded-full text-xs">
-                👥 {world.capacity}
+                <UserGroupIcon className="w-4 h-4 mr-1" /> {world.capacity}
               </div>
             )}
             {totalInstances > 0 && (
               <div className="bg-green-600/90 text-white px-2 py-1 rounded-full text-xs">
-                🌐 {totalInstances} instância{totalInstances > 1 ? 's' : ''}
+                <GlobeAltIcon className="w-4 h-4 mr-1" /> {totalInstances} instância{totalInstances > 1 ? 's' : ''}
               </div>
             )}
           </div>
 
           {/* Overlay com informações de instâncias */}
           {totalUsers > 0 && (
-            <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white px-2 py-1 rounded-full text-xs">
-              👤 {totalUsers} online
+            <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+              <UserIcon className="w-3 h-3" /> {totalUsers} online
             </div>
           )}
         </div>
@@ -4556,9 +4564,23 @@ const WorldExplorer = () => {
           {/* Plataforma e status */}
           <div className="flex items-center justify-between text-xs">
             {world.platform && (
-              <div className="flex items-center text-gray-400">
-                {world.platform === 'standalonewindows' ? '🖥️ PC' :
-                 world.platform === 'android' ? '📱 Quest' : '🎮 ' + world.platform}
+              <div className="flex items-center text-gray-400 gap-1">
+                {world.platform === 'standalonewindows' ? (
+                  <>
+                    <DeviceTabletIcon className="w-4 h-4" />
+                    PC
+                  </>
+                ) : world.platform === 'android' ? (
+                  <>
+                    <DeviceTabletIcon className="w-4 h-4" />
+                    Quest
+                  </>
+                ) : (
+                  <>
+                    <DeviceTabletIcon className="w-4 h-4" />
+                    {world.platform}
+                  </>
+                )}
               </div>
             )}
             {world.releaseStatus && (
@@ -4581,18 +4603,10 @@ const WorldExplorer = () => {
       {/* Header e Busca */}
       <div className="bg-gray-800 rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">🌍 World Explorer</h2>
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <GlobeAltIcon className="w-8 h-8" /> World Explorer
+          </h2>
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => {
-                setSearchQuery('test')
-                setSelectedCategory('social')
-                handleSearch()
-              }}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm transition-colors"
-            >
-              🧪 Teste
-            </button>
             <div className="flex items-center space-x-2 text-sm text-gray-400">
               <GlobeAltIcon className="w-4 h-4" />
               <span>Descubra novos mundos</span>
@@ -4618,7 +4632,12 @@ const WorldExplorer = () => {
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : '🔍 Buscar'}
+              {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : (
+                <span className="flex items-center gap-2">
+                  <MagnifyingGlassIcon className="w-5 h-5" />
+                  Buscar
+                </span>
+              )}
             </button>
           </div>
           
@@ -4663,14 +4682,15 @@ const WorldExplorer = () => {
                 }}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg text-sm transition-colors"
               >
-                🔄 Limpar Filtros
+                <ArrowPathIcon className="w-4 h-4 mr-2" />
+                Limpar Filtros
               </button>
             )}
 
             {/* Indicador de filtros ativos */}
             {(selectedCategory !== 'all' || sortBy !== 'popularity') && (
               <div className="flex items-center space-x-1 text-xs text-blue-400">
-                <span>🔧</span>
+                <Cog6ToothIcon className="w-4 h-4" />
                 <span>Filtros aplicados</span>
               </div>
             )}
@@ -4683,7 +4703,8 @@ const WorldExplorer = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-white flex items-center">
-              📋 Resultados da Busca
+              <ClipboardIcon className="w-5 h-5 mr-2" />
+              Resultados da Busca
               {searchResults.length > 0 && (
                 <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-sm rounded-full">
                   {searchResults.length}
@@ -4722,10 +4743,12 @@ const WorldExplorer = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-white flex items-center">
-              ⭐ Mundos em Destaque
+              <StarIcon className="w-6 h-6 mr-2" />
+              Mundos em Destaque
             </h3>
-            <div className="px-2 py-1 bg-yellow-600/30 text-yellow-300 text-xs rounded-full">
-              📋 Demo Data
+            <div className="px-2 py-1 bg-yellow-600/30 text-yellow-300 text-xs rounded-full flex items-center gap-1">
+              <ClipboardIcon className="w-3 h-3" />
+              Demo Data
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -4741,10 +4764,12 @@ const WorldExplorer = () => {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-white flex items-center">
-              🔥 Mundos Populares
+              <ChartBarIcon className="w-6 h-6 mr-2" />
+              Mundos Populares
             </h3>
-            <div className="px-2 py-1 bg-yellow-600/30 text-yellow-300 text-xs rounded-full">
-              📋 Demo Data
+            <div className="px-2 py-1 bg-yellow-600/30 text-yellow-300 text-xs rounded-full flex items-center gap-1">
+              <ClipboardIcon className="w-3 h-3" />
+              Demo Data
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
