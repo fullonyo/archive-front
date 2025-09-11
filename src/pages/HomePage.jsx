@@ -9,7 +9,8 @@ import {
   UserGroupIcon,
   UserIcon,
   ShieldCheckIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline'
 import UserRankingCard from '../components/dashboard/UserRankingCard'
 import RecentActivity from '../components/dashboard/RecentActivity'
@@ -203,7 +204,7 @@ const HomePage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${hasAdminAccess ? 'xl:grid-cols-5' : ''}`}
+                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 ${hasAdminAccess ? '2xl:grid-cols-6' : ''}`}
               >
                 <QuickAction
                   to="/marketplace"
@@ -232,6 +233,13 @@ const HomePage = () => {
                   title="Dashboard"
                   description="Seus uploads e favoritos"
                   gradient="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 group-hover:from-blue-500/30 group-hover:to-cyan-500/30"
+                />
+                <QuickAction
+                  to="/vrchat-api"
+                  icon={LinkIcon}
+                  title="VRChat API"
+                  description="Conectar com VRChat"
+                  gradient="bg-gradient-to-br from-orange-500/20 to-red-500/20 group-hover:from-orange-500/30 group-hover:to-red-500/30"
                 />
                 {!permissionsLoading && hasAdminAccess && (
                   <QuickAction

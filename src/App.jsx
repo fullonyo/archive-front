@@ -24,6 +24,7 @@ import AssetDetailPage from './pages/AssetDetailPage'
 import UploadPage from './pages/UploadPage'
 import CategoriesPage from './pages/CategoriesPage'
 import AdminPage from './pages/AdminPage'
+import VRChatAPIPage from './pages/VRChatAPIPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // Protected route component
@@ -254,6 +255,16 @@ function App() {
               <ProtectedRoute requireAdmin>
                 <MatrixLayout>
                   <AdminPage />
+                </MatrixLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/vrchat-api" 
+            element={
+              <ProtectedRoute>
+                <MatrixLayout>
+                  <VRChatAPIPage />
                 </MatrixLayout>
               </ProtectedRoute>
             } 
