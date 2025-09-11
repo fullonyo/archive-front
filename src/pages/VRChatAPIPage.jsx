@@ -336,229 +336,236 @@ const VRChatAPIPage = () => {
   // Se não estiver conectado, mostrar tela de autenticação
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="max-w-md w-full mx-4">
-          <VRChatAuth
-            onLoginSubmit={handleLoginSubmit}
-            on2FASubmit={handle2FASubmit}
-            loading={loading || isConnecting}
-            error={error}
-            needs2FA={needs2FA}
-            onClearError={clearError}
-          />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+        {/* Header minimalista para auth */}
+        <header className="w-full px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-3">
+              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded"></div>
+              <span className="text-lg font-medium text-gray-900 dark:text-white">VRChat API</span>
+            </div>
+          </div>
+        </header>
+        
+        {/* Área de autenticação centralizada */}
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-md">
+            <VRChatAuth
+              onLoginSubmit={handleLoginSubmit}
+              on2FASubmit={handle2FASubmit}
+              loading={loading || isConnecting}
+              error={error}
+              needs2FA={needs2FA}
+              onClearError={clearError}
+            />
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Header fixo estilo rede social moderno */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo e perfil */}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header minimalista full-width */}
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-800/50">
+        <div className="w-full px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo minimalista */}
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">VR</span>
-                </div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white hidden sm:block">VRChat</h1>
-              </div>
-              
-              {/* User info */}
-              <div className="hidden md:flex items-center space-x-3 pl-4 border-l border-gray-200 dark:border-gray-700">
-                <img
-                  src={connection?.currentUser?.userIcon || connection?.currentUser?.profilePicOverride}
-                  alt={connection?.currentUser?.displayName}
-                  className="w-8 h-8 rounded-full object-cover bg-gray-300 dark:bg-gray-600"
-                  onError={(e) => {
-                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjMzc0MTUxIiByeD0iMTYiLz48cGF0aCBkPSJNMTYgOEMxMi40NiA4IDkuNiAxMC44NiA5LjYgMTQuNFMxMi40NiAyMC44IDE2IDIwLjhTMjIuNCAyNy45NCAyMi40IDE0LjRTMTkuNTQgOCAxNiA4Wk0xNiAxNy42QzE0LjIzIDE3LjYgMTIuOCAxNi4xNyAxMi44IDE0LjRTMTQuMjMgMTEuMiAxNiAxMS4yUzE5LjIgMTIuNjMgMTkuMiAxNC40UzE3Ljc3IDE3LjYgMTYgMTcuNloiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
-                  }}
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {connection?.currentUser?.displayName}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {lastRefresh ? `Atualizado ${lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'Carregando...'}
-                  </p>
-                </div>
+              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded"></div>
+              <div className="hidden sm:flex items-center space-x-2">
+                <span className="text-lg font-medium text-gray-900 dark:text-white">VRChat</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">API</span>
               </div>
             </div>
             
-            {/* Actions */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleRefresh}
-                disabled={loadingDashboard}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Atualizar"
-              >
-                <ArrowPathIcon className={`w-5 h-5 ${loadingDashboard ? 'animate-spin' : ''}`} />
-              </button>
+            {/* User info compacta */}
+            <div className="flex items-center space-x-4">
+              <div className="hidden lg:flex items-center space-x-3">
+                <img
+                  src={connection?.currentUser?.userIcon || connection?.currentUser?.profilePicOverride}
+                  alt={connection?.currentUser?.displayName}
+                  className="w-7 h-7 rounded-full object-cover"
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgiIGhlaWdodD0iMjgiIHZpZXdCb3g9IjAgMCAyOCAyOCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjMzc0MTUxIiByeD0iMTQiLz48cGF0aCBkPSJNMTQgN0MxMS4yNCA3IDkgOS4yNCA5IDEyUzExLjI0IDE3IDE0IDE3UzE5IDI0Ljc2IDE5IDEyUzE2Ljc2IDcgMTQgN1pNMTQgMTQuOEMxMi43IDE0LjggMTEuNiAxMy43IDExLjYgMTJTMTIuNyA5LjIgMTQgOS4yUzE2LjQgMTAuMyAxNi4zIDEyUzE1LjMgMTQuOCAxNCA0LjhaIiBmaWxsPSIjNkI3MjgwIi8+PC9zdmc+'
+                  }}
+                />
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {connection?.currentUser?.displayName}
+                  </div>
+                </div>
+              </div>
               
-              <button
-                onClick={disconnect}
-                className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                Sair
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loadingDashboard}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all"
+                  title="Atualizar"
+                >
+                  <ArrowPathIcon className={`w-4 h-4 ${loadingDashboard ? 'animate-spin' : ''}`} />
+                </button>
+                
+                <button
+                  onClick={disconnect}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                >
+                  Sair
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Layout principal de três colunas estilo rede social */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Layout full-width com grid adaptativo */}
+      <main className="w-full min-h-[calc(100vh-80px)]">
+        <div className="grid grid-cols-12 gap-0 h-full">
           
-          {/* Sidebar esquerda - Navegação */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-24 space-y-4">
-              {/* Menu de navegação */}
-              <nav className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Menu</h3>
-                <div className="space-y-1">
-                  {sections.map((section) => {
-                    const Icon = section.icon
-                    return (
-                      <button
-                        key={section.id}
-                        onClick={() => setActiveSection(section.id)}
-                        className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                          activeSection === section.id
-                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                            : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                        <span>{section.name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
+          {/* Sidebar esquerda - Navegação minimalista */}
+          <aside className="col-span-12 md:col-span-2 lg:col-span-2 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+            <div className="sticky top-20 p-4">
+              {/* Menu de navegação vertical */}
+              <nav className="space-y-1">
+                {sections.map((section) => {
+                  const Icon = section.icon
+                  return (
+                    <button
+                      key={section.id}
+                      onClick={() => setActiveSection(section.id)}
+                      className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-all group ${
+                        activeSection === section.id
+                          ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      <span className="hidden lg:block">{section.name}</span>
+                    </button>
+                  )
+                })}
               </nav>
 
-              {/* Stats rápidas */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Estatísticas</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Amigos</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{friends.length}</span>
+              {/* Stats compactas */}
+              <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-800">
+                <div className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex justify-between items-center">
+                    <span>Amigos</span>
+                    <span className="font-medium">{friends.length}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Online</span>
-                    <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                      {friends.filter(f => f.status !== 'offline').length}
-                    </span>
+                  <div className="flex justify-between items-center">
+                    <span>Online</span>
+                    <span className="font-medium text-green-500">{friends.filter(f => f.status !== 'offline').length}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Atividades</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{activityLogs.length}</span>
+                  <div className="flex justify-between items-center">
+                    <span>Logs</span>
+                    <span className="font-medium">{activityLogs.length}</span>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </aside>
 
-          {/* Área central - Feed principal */}
-          <div className="lg:col-span-6">
-            <div className="space-y-6">
+          {/* Área central - Feed principal expandido */}
+          <main className="col-span-12 md:col-span-7 lg:col-span-7 bg-gray-50 dark:bg-gray-900 min-h-full">
+            <div className="p-6">
               <AnimatePresence mode="wait">
                 {renderActiveSection()}
               </AnimatePresence>
             </div>
-          </div>
+          </main>
 
-          {/* Sidebar direita - Amigos online */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-24">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Amigos Online</h3>
-                    {friends.length > 0 && (() => {
-                      const onlineFriends = friends.filter(f => f.status !== 'offline').length
-                      return onlineFriends > 0 && (
-                        <div className="flex items-center space-x-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded-full">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          <span className="text-xs font-medium">{onlineFriends}</span>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                </div>
-                
-                {/* Lista de amigos online */}
-                <div className="p-4">
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {loadingDashboard ? (
-                      <div className="flex items-center justify-center py-8">
-                        <VRChatLoading size="sm" type="user" showText={false} />
+          {/* Sidebar direita - Amigos online compacta */}
+          <aside className="col-span-12 md:col-span-3 lg:col-span-3 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800">
+            <div className="sticky top-20 h-[calc(100vh-80px)] flex flex-col">
+              
+              {/* Header da sidebar */}
+              <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-gray-900 dark:text-white">Online</h3>
+                  {(() => {
+                    const onlineFriends = friends.filter(f => f.status !== 'offline').length
+                    return onlineFriends > 0 && (
+                      <div className="flex items-center space-x-1.5">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400">{onlineFriends}</span>
                       </div>
-                    ) : friends.length === 0 ? (
-                      <div className="text-center py-8">
-                        <UserGroupIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">Nenhum amigo online</p>
-                      </div>
-                    ) : (
-                      friends
-                        .filter(friend => friend.status !== 'offline')
-                        .slice(0, 12)
-                        .map((friend) => (
-                          <motion.div
-                            key={friend.id}
-                            layout
-                            className="flex items-center space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer group"
-                            onClick={() => handleFriendSelect(friend)}
-                          >
-                            <div className="relative">
-                              <img
-                                src={friend.userIcon || friend.profilePicOverride}
-                                alt={friend.displayName}
-                                className="w-10 h-10 rounded-full object-cover bg-gray-200 dark:bg-gray-600"
-                                onError={(e) => {
-                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRDFENUREIiByeD0iMjAiLz48cGF0aCBkPSJNMjAgMTBDMTUuNTggMTAgMTIgMTMuNTggMTIgMTggUzE1LjU4IDI2IDIwIDI2UzI4IDIyLjQyIDI4IDE4UzI0LjQyIDEwIDIwIDEwWk0yMCAyMkMxNy43OSAyMiAxNiAyMC4yMSAxNiAxOFMxNy43OSAxNCAyMCAxNFMyNCAyMS43OSAyNCAxOFMyMi4yMSAyMiAyMCAyMloiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
-                                }}
-                              />
-                              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${
-                                friend.status === 'online' ? 'bg-green-500' :
-                                friend.status === 'active' ? 'bg-blue-500' :
-                                friend.status === 'busy' ? 'bg-red-500' :
-                                'bg-yellow-500'
-                              }`} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-gray-900 dark:text-white text-sm font-medium truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                {friend.displayName}
-                              </p>
-                              <p className="text-gray-500 dark:text-gray-400 text-xs truncate">
-                                {friend.location || 'Localização privada'}
-                              </p>
-                            </div>
-                          </motion.div>
-                        ))
-                    )}
-                  </div>
-                  
-                  {friends.filter(f => f.status !== 'offline').length > 12 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <button
-                        onClick={() => setActiveSection('friends')}
-                        className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                      >
-                        Ver todos os amigos ({friends.filter(f => f.status !== 'offline').length})
-                      </button>
-                    </div>
-                  )}
+                    )
+                  })()}
                 </div>
               </div>
+              
+              {/* Lista de amigos - scrollável */}
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="space-y-2">
+                  {loadingDashboard ? (
+                    <div className="flex items-center justify-center py-8">
+                      <VRChatLoading size="sm" type="user" showText={false} />
+                    </div>
+                  ) : friends.length === 0 ? (
+                    <div className="text-center py-8">
+                      <UserGroupIcon className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">Nenhum amigo</p>
+                    </div>
+                  ) : (
+                    friends
+                      .filter(friend => friend.status !== 'offline')
+                      .map((friend) => (
+                        <motion.div
+                          key={friend.id}
+                          layout
+                          className="flex items-center space-x-2.5 p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors cursor-pointer group"
+                          onClick={() => handleFriendSelect(friend)}
+                        >
+                          <div className="relative">
+                            <img
+                              src={friend.userIcon || friend.profilePicOverride}
+                              alt={friend.displayName}
+                              className="w-8 h-8 rounded-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjRDFENUREIiByeD0iMTYiLz48cGF0aCBkPSJNMTYgOEMxMi42NCA4IDEwIDEwLjY0IDEwIDEzUzEyLjY0IDE4IDE2IDE4UzIyIDIwLjM2IDIyIDE0UzE5LjM2IDggMTYgOFpNMTYgMTVDMTQuMzQgMTUgMTMgMTMuNjYgMTMgMTJTMTQuMzQgOSAxNiA5UzE5IDEwLjM0IDE5IDEyUzE3LjY2IDE1IDE2IDE1WiIgZmlsbD0iIzlDQTVBMCIvPjwvc3ZnPg=='
+                              }}
+                            />
+                            <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-900 ${
+                              friend.status === 'online' ? 'bg-green-500' :
+                              friend.status === 'active' ? 'bg-blue-500' :
+                              friend.status === 'busy' ? 'bg-red-500' :
+                              'bg-yellow-500'
+                            }`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-900 dark:text-white text-sm font-medium truncate">
+                              {friend.displayName}
+                            </p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs truncate">
+                              {friend.location ? 
+                                (friend.location.includes('wrld_') ? 'Em mundo público' : 
+                                 friend.location.includes('private') ? 'Privado' : 
+                                 friend.location) : 'Desconhecido'}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))
+                  )}
+                </div>
+                
+                {/* Link para ver todos */}
+                {friends.filter(f => f.status !== 'offline').length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+                    <button
+                      onClick={() => setActiveSection('friends')}
+                      className="w-full text-center text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium py-2"
+                    >
+                      Ver todos ({friends.length})
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
