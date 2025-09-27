@@ -136,26 +136,8 @@ const AssetDetailPage = () => {
       const response = await assetsAPI.toggleFavorite(id);
       console.log('Toggle favorite response:', response?.data);
       
-      if (response?.data?.success) {
-        // Use the server state to confirm
-        const serverIsLiked = response.data.data.isFavorited;
-        console.log('Server isLiked state:', serverIsLiked);
-        setIsLiked(serverIsLiked);
-        
-        // Refresh asset data to ensure consistency
-        const assetResponse = await assetsAPI.getAsset(id);
-        if (assetResponse?.data?.success) {
-          const updatedAsset = assetResponse.data.data.asset;
-          setAsset(updatedAsset);
-          // Double check the isLiked state from fresh data
-          setIsLiked(updatedAsset.isLiked);
-          console.log('Fresh asset isLiked:', updatedAsset.isLiked);
-        }
-        
-        // Show success message based on server state
-        // Toast removed for cleaner UX
-      } else {
-        // Revert optimistic update on failure
+      if (!response?.data?.success) {
+        // Only revert if the request failed
         setIsLiked(!newIsLiked);
         setAsset(prev => ({
           ...prev,
@@ -165,6 +147,8 @@ const AssetDetailPage = () => {
           }
         }));
       }
+      // If success, keep the optimistic update (no need to update again)
+      
     } catch (err) {
       console.error('Error toggling like:', err);
       // Revert optimistic update on error
