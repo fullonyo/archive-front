@@ -13,6 +13,7 @@ import WorldExplorer from '../components/VRChat/WorldExplorer'
 // Componentes UI
 import VRChatLoading from '../components/ui/VRChatLoading'
 import WorldDetailsModal from '../components/VRChat/WorldDetailsModal'
+import FriendDetailsModal from '../components/VRChat/FriendDetailsModal'
 
 import { 
   UserGroupIcon,
@@ -64,6 +65,8 @@ const VRChatAPIPage = () => {
   const [worlds, setWorlds] = useState([])
   const [favoriteWorlds, setFavoriteWorlds] = useState([])
   const [worldSearchQuery, setWorldSearchQuery] = useState('')
+  const [selectedFriend, setSelectedFriend] = useState(null)
+  const [showFriendModal, setShowFriendModal] = useState(false)
   
   // Estados para tracking de atividades
   const [friendsHistory, setFriendsHistory] = useState(new Map())
@@ -246,8 +249,9 @@ const VRChatAPIPage = () => {
   }, [loadDashboardData])
 
   const handleFriendSelect = useCallback((friend) => {
-    // Implementar lógica para selecionar amigo
     console.log('Amigo selecionado:', friend)
+    setSelectedFriend(friend)
+    setShowFriendModal(true)
   }, [])
 
   const handleWorldSelect = useCallback((world) => {
@@ -516,7 +520,11 @@ const VRChatAPIPage = () => {
                     </div>
                   ) : (
                     friends
-                      .filter(friend => friend.status !== 'offline')
+                      .filter(friend => {
+                        const isOnline = friend.status && friend.status !== 'offline'
+                        console.log(`🔍 Friend ${friend.displayName}: status=${friend.status}, isOnline=${isOnline}`)
+                        return isOnline
+                      })
                       .map((friend) => (
                         <motion.div
                           key={friend.id}
@@ -526,7 +534,7 @@ const VRChatAPIPage = () => {
                         >
                           <div className="relative">
                             <img
-                              src={friend.userIcon || friend.profilePicOverride}
+                              src={friend.currentAvatarImageUrl || friend.userIcon || friend.profilePicOverride || 'https://d348imysud55la.cloudfront.net/icons/default_user_icon.png'}
                               alt={friend.displayName}
                               className="w-8 h-8 rounded-full object-cover"
                               onError={(e) => {
@@ -534,10 +542,12 @@ const VRChatAPIPage = () => {
                               }}
                             />
                             <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-900 ${
-                              friend.status === 'online' ? 'bg-green-500' :
-                              friend.status === 'active' ? 'bg-blue-500' :
-                              friend.status === 'busy' ? 'bg-red-500' :
-                              'bg-yellow-500'
+                              (friend.status || 'offline') === 'online' ? 'bg-green-500' :
+                              (friend.status || 'offline') === 'active' ? 'bg-blue-500' :
+                              (friend.status || 'offline') === 'join me' ? 'bg-blue-500' :
+                              (friend.status || 'offline') === 'ask me' ? 'bg-yellow-500' :
+                              (friend.status || 'offline') === 'busy' ? 'bg-red-500' :
+                              'bg-gray-500'
                             }`} />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -548,6 +558,7 @@ const VRChatAPIPage = () => {
                               {friend.location ? 
                                 (friend.location.includes('wrld_') ? 'Em mundo público' : 
                                  friend.location.includes('private') ? 'Privado' : 
+                                 friend.location === 'offline' ? 'Offline' :
                                  friend.location) : 'Desconhecido'}
                             </p>
                           </div>
@@ -572,6 +583,13 @@ const VRChatAPIPage = () => {
           </aside>
         </div>
       </main>
+      
+      {/* Modal de detalhes do amigo */}
+      <FriendDetailsModal
+        friend={selectedFriend}
+        isOpen={showFriendModal}
+        onClose={() => setShowFriendModal(false)}
+      />
     </div>
   )
 }

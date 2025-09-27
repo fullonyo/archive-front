@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   UserGroupIcon,
@@ -46,11 +46,37 @@ const FriendsList = ({
     cardDensity: 'comfortable' // comfortable, compact, dense
   })
 
+  // Debug dos dados de amigos
+  useEffect(() => {
+    console.log('👥 FriendsList - Dados recebidos:', {
+      friends: friends,
+      friendsLength: friends?.length || 0,
+      firstFriend: friends?.[0] || null,
+      friendsFields: friends?.[0] ? Object.keys(friends[0]) : [],
+      loading: loading
+    })
+
+    if (friends?.length > 0) {
+      console.log('📋 Sample friend details:', {
+        displayName: friends[0].displayName,
+        username: friends[0].username,
+        status: friends[0].status,
+        avatarUrl: friends[0].currentAvatarImageUrl || friends[0].userIcon,
+        location: friends[0].location,
+        tags: friends[0].tags
+      })
+    }
+  }, [friends, loading])
+
   // Função para abrir modal de detalhes do amigo
   const openFriendModal = (friend) => {
+    console.log('🔍 Abrindo modal para amigo:', friend)
     setSelectedFriend(friend)
     setShowFriendModal(true)
-    if (onFriendSelect) onFriendSelect(friend)
+    if (onFriendSelect) {
+      console.log('📞 Chamando onFriendSelect callback')
+      onFriendSelect(friend)
+    }
   }
 
   // Função para fechar modal
@@ -113,13 +139,16 @@ const FriendsList = ({
     const worldName = parseWorldLocation(friend.location)
     
     const getStatusColor = (status) => {
-      switch (status) {
-        case 'active': return 'bg-green-500'
+      const statusLower = (status || 'offline').toLowerCase()
+      switch (statusLower) {
+        case 'active': 
+        case 'online': return 'bg-green-500'
         case 'join me': return 'bg-blue-500'
         case 'busy': return 'bg-red-500'
+        case 'ask me': return 'bg-yellow-500'
         case 'away': return 'bg-yellow-500'
-        case 'offline': return 'bg-gray-500'
-        default: return 'bg-gray-400'
+        case 'offline': 
+        default: return 'bg-gray-500'
       }
     }
     
@@ -158,7 +187,7 @@ const FriendsList = ({
                 ${viewSettings.enableAnimations ? 'group-hover:scale-110 transition-transform duration-300' : ''}
               `}>
                 <img
-                  src={friend.userIcon}
+                  src={friend.currentAvatarImageUrl || friend.userIcon || friend.profilePicOverride || 'https://d348imysud55la.cloudfront.net/icons/default_user_icon.png'}
                   alt={friend.displayName}
                   className={`w-full h-full object-cover transition-opacity duration-300 ${
                     imageLoaded ? 'opacity-100' : 'opacity-0'
@@ -193,11 +222,14 @@ const FriendsList = ({
               <div className="flex items-center space-x-2 mt-1">
                 <span className={`
                   px-2 py-1 rounded-full text-xs font-medium
-                  ${friend.status === 'offline' ? 'bg-gray-700 text-gray-300' : 'bg-green-700 text-green-200'}
+                  ${(friend.status || 'offline') === 'offline' ? 'bg-gray-700 text-gray-300' : 'bg-green-700 text-green-200'}
                 `}>
-                  {friend.status === 'offline' ? 'Offline' : 
+                  {(friend.status || 'offline') === 'offline' ? 'Offline' : 
                    friend.status === 'active' ? 'Online' :
+                   friend.status === 'online' ? 'Online' :
                    friend.status === 'busy' ? 'Ocupado' :
+                   friend.status === 'join me' ? 'Join Me' :
+                   friend.status === 'ask me' ? 'Ask Me' :
                    friend.status === 'away' ? 'Ausente' : 'Disponível'}
                 </span>
               </div>
@@ -295,8 +327,10 @@ const FriendsList = ({
       
       // Filtro de status
       if (statusFilter !== 'all') {
-        if (statusFilter === 'online' && friend.status === 'offline') return false
-        if (statusFilter === 'offline' && friend.status !== 'offline') return false
+        const friendStatus = friend.status || 'offline'
+        if (statusFilter === 'online' && friendStatus === 'offline') return false
+        if (statusFilter === 'offline' && friendStatus !== 'offline') return false
+        if (statusFilter !== 'online' && statusFilter !== 'offline' && friendStatus !== statusFilter) return false
       }
       
       return true
@@ -306,17 +340,17 @@ const FriendsList = ({
     filtered.sort((a, b) => {
       if (sortBy === 'status') {
         const statusPriority = {
-          'online': 1, 'join me': 2, 'ask me': 3, 'active': 4, 'busy': 5, 'offline': 6
+          'online': 1, 'active': 1, 'join me': 2, 'ask me': 3, 'busy': 4, 'away': 5, 'offline': 6
         }
         const priorityA = statusPriority[a.status] || 6
         const priorityB = statusPriority[b.status] || 6
         
         if (priorityA !== priorityB) return priorityA - priorityB
-        return a.displayName.localeCompare(b.displayName)
+        return (a.displayName || '').localeCompare(b.displayName || '')
       }
       
       if (sortBy === 'name') {
-        return a.displayName.localeCompare(b.displayName)
+        return (a.displayName || '').localeCompare(b.displayName || '')
       }
       
       return 0
@@ -327,9 +361,13 @@ const FriendsList = ({
 
   // Estatísticas dos amigos
   const stats = useMemo(() => {
+    if (!friends || !Array.isArray(friends)) {
+      return { total: 0, online: 0, offline: 0 }
+    }
+    
     const total = friends.length
-    const online = friends.filter(f => f.status !== 'offline').length
-    const offline = friends.filter(f => f.status === 'offline').length
+    const online = friends.filter(f => f.status && f.status !== 'offline').length
+    const offline = friends.filter(f => !f.status || f.status === 'offline').length
     
     return { total, online, offline }
   }, [friends])
@@ -342,7 +380,7 @@ const FriendsList = ({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       className="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors cursor-pointer border border-gray-700/30"
-      onClick={() => onFriendSelect(friend)}
+      onClick={() => openFriendModal(friend)}
     >
       <div className="flex items-center space-x-3">
         <div className="relative">
