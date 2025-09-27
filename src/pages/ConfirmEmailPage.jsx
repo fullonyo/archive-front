@@ -111,7 +111,7 @@ const ConfirmEmailPage = () => {
             <div className="inline-flex items-center justify-center mb-4 relative">
               <img 
                 src="/logo.png" 
-                alt="VRCHIEVE Logo" 
+                alt="Arc Lhama Logo" 
                 className="w-32 h-32 object-contain hover:scale-105 transition-transform duration-300"
               />
             </div>

@@ -169,7 +169,7 @@ const HomePage = () => {
               {isAuthenticated ? (
                 <>Bem-vindo de volta, <span className="text-indigo-400">{user?.username}</span>!</>
               ) : (
-                <>Acesse o <span className="text-indigo-400 font-mono">Archive Nyo</span></>
+                <>Acesse o <span className="text-indigo-400 font-mono">Arc Lhama</span></>
               )}
             </h1>
             <p className="text-gray-400 text-sm max-w-xl mx-auto">
@@ -331,7 +331,7 @@ const HomePage = () => {
                   <div className="inline-flex items-center justify-center mb-6 relative">
                     <img 
                       src="/logo.png" 
-                      alt="VRCHIEVE Logo" 
+                      alt="Arc Lhama Logo" 
                       className="w-56 h-56 object-contain hover:scale-105 transition-transform duration-300 relative z-10"
                     />
                   </div>

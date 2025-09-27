@@ -81,7 +81,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <LoadingSpinner size="xl" />
-          <p className="mt-4 text-gray-400">Carregando Archive Nyo...</p>
+          <p className="mt-4 text-gray-400">Carregando Arc Lhama...</p>
         </div>
       </div>
     )

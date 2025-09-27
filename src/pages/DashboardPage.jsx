@@ -320,7 +320,7 @@ const DashboardPage = () => {
                 {getWelcomeMessage()}, {user.username}! 👋
               </h1>
               <p className="mt-2 text-gray-400">
-                Aqui está um resumo das suas atividades no Archive Nyo
+                Aqui está um resumo das suas atividades no Arc Lhama
               </p>
             </div>
             <button

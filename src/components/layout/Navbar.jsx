@@ -81,13 +81,13 @@ const Navbar = () => {
               <div className="relative">
                 <img 
                   src="/logo2.PNG" 
-                  alt="VRCHIEVE Logo" 
+                  alt="Arc Lhama Logo" 
                   className="w-12 h-12 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
               <div className="hidden sm:block">
                 <span className="font-mono tracking-wider bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent group-hover:from-indigo-300 group-hover:via-purple-300 group-hover:to-pink-300 transition-all duration-300">
-                  Archive Nyo
+                  Arc Lhama
                 </span>
               </div>
             </Link>
