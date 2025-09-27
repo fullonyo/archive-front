@@ -189,7 +189,7 @@ const VRChatAPIPage = () => {
         const data = {
           profile: result.data.profile || connection?.currentUser || {},
           friends: result.data.friends?.friends || [],
-          recentWorlds: result.data.recentWorlds?.recentWorlds || [],
+          recentWorlds: result.data.recentWorlds?.worlds || result.data.recentWorlds || [],
           stats: result.data.stats || {}
         }
 

@@ -58,15 +58,42 @@ const VRChatDashboard = ({
     return 'Agora mesmo'
   }
 
+  // Função para obter melhor URL de avatar disponível
+  const getAvatarUrl = (profile) => {
+    const urls = [
+      profile.vrchatProfilePicUrl,
+      profile.vrchatAvatarUrl, 
+      profile.profilePicOverride,
+      profile.userIcon,
+      profile.currentAvatarImageUrl
+    ].filter(Boolean)
+    
+    return urls[0] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjM0I0MDQ4IiByeD0iMzIiLz48cGF0aCBkPSJNMzIgMTZDMjQuOTU4IDE2IDIwIDIxLjk1OCAyMCAzMlMyNC45NTggNDggMzIgNDhTNDQgNDIuMDQyIDQ0IDMyUzM5LjA0MiAxNiAzMiAxNlpNMzIgNDBDMjguNjg2IDQwIDI2IDM3LjMxNCAyNiAzNFMyOC42ODYgMjggMzIgMjhTMzggMzAuNjg2IDM4IDM0UzM1LjMxNCA0MCAzMiA0MFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
+  }
+
   // Debug dos dados recebidos
   useEffect(() => {
     console.log('🔍 VRChatDashboard - Dados recebidos:', {
       profile: profile,
+      profileKeys: profile ? Object.keys(profile) : [],
       stats: stats,
       recentWorlds: recentWorlds,
+      recentWorldsLength: recentWorlds?.length || 0,
       friends: friends?.length || 0,
       loading: loading
     })
+
+    // Debug específico dos campos do perfil
+    if (profile && Object.keys(profile).length > 0) {
+      console.log('📋 Profile details:', {
+        displayName: profile.vrchatDisplayName || profile.displayName,
+        status: profile.vrchatStatus || profile.status,
+        avatarUrl: profile.vrchatProfilePicUrl || profile.vrchatAvatarUrl,
+        tags: profile.vrchatTags || profile.tags,
+        location: profile.vrchatLocation || profile.location,
+        statusDescription: profile.vrchatStatusDescription || profile.statusDescription
+      })
+    }
   }, [profile, stats, recentWorlds, friends, loading])
 
   return (
@@ -112,18 +139,18 @@ const VRChatDashboard = ({
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <img
-                  src={profile.profilePicOverride || profile.userIcon || profile.currentAvatarImageUrl}
-                  alt={profile.displayName}
+                  src={getAvatarUrl(profile)}
+                  alt={profile.vrchatDisplayName || profile.displayName || 'Usuário'}
                   className="w-16 h-16 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700"
                   onError={(e) => {
                     e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjM0I0MDQ4IiByeD0iMzIiLz48cGF0aCBkPSJNMzIgMTZDMjQuOTU4IDE2IDIwIDIxLjk1OCAyMCAzMlMyNC45NTggNDggMzIgNDhTNDQgNDIuMDQyIDQ0IDMyUzM5LjA0MiAxNiAzMiAxNlpNMzIgNDBDMjguNjg2IDQwIDI2IDM3LjMxNCAyNiAzNFMyOC42ODYgMjggMzIgMjhTMzggMzAuNjg2IDM4IDM0UzM1LjMxNCA0MCAzMiA0MFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
                   }}
                 />
                 <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 ${
-                  profile.status === 'online' ? 'bg-green-500' :
-                  profile.status === 'join me' ? 'bg-blue-500' :
-                  profile.status === 'ask me' ? 'bg-yellow-500' :
-                  profile.status === 'busy' ? 'bg-red-500' :
+                  (profile.vrchatStatus || profile.status) === 'online' ? 'bg-green-500' :
+                  (profile.vrchatStatus || profile.status) === 'join me' ? 'bg-blue-500' :
+                  (profile.vrchatStatus || profile.status) === 'ask me' ? 'bg-yellow-500' :
+                  (profile.vrchatStatus || profile.status) === 'busy' ? 'bg-red-500' :
                   'bg-gray-400'
                 }`} />
               </div>
@@ -131,9 +158,9 @@ const VRChatDashboard = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-1">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-                    {profile.displayName || 'Usuário'}
+                    {profile.vrchatDisplayName || profile.displayName || 'Usuário'}
                   </h2>
-                  {profile.tags && profile.tags.includes('system_trust_trusted') && (
+                  {(profile.vrchatTags || profile.tags) && (profile.vrchatTags || profile.tags).includes('system_trust_trusted') && (
                     <div className="flex items-center space-x-1 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-2 py-1 rounded-full">
                       <StarIcon className="w-3 h-3" />
                       <span className="text-xs font-medium">Trusted</span>
@@ -143,23 +170,23 @@ const VRChatDashboard = ({
                 
                 <div className="flex items-center space-x-4 text-sm">
                   <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full font-medium ${
-                    profile.status === 'online' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
-                    profile.status === 'join me' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
-                    profile.status === 'ask me' ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
-                    profile.status === 'busy' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                    (profile.vrchatStatus || profile.status) === 'online' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                    (profile.vrchatStatus || profile.status) === 'join me' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
+                    (profile.vrchatStatus || profile.status) === 'ask me' ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                    (profile.vrchatStatus || profile.status) === 'busy' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
                     'bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                   }`}>
                     <div className={`w-2 h-2 rounded-full ${
-                      profile.status === 'online' ? 'bg-green-500 animate-pulse' :
-                      profile.status === 'join me' ? 'bg-blue-500' :
-                      profile.status === 'ask me' ? 'bg-yellow-500' :
-                      profile.status === 'busy' ? 'bg-red-500' :
+                      (profile.vrchatStatus || profile.status) === 'online' ? 'bg-green-500 animate-pulse' :
+                      (profile.vrchatStatus || profile.status) === 'join me' ? 'bg-blue-500' :
+                      (profile.vrchatStatus || profile.status) === 'ask me' ? 'bg-yellow-500' :
+                      (profile.vrchatStatus || profile.status) === 'busy' ? 'bg-red-500' :
                       'bg-gray-400'
                     }`} />
                     <span className="capitalize">
-                      {profile.status === 'join me' ? 'Join Me' :
-                       profile.status === 'ask me' ? 'Ask Me' :
-                       profile.status || 'Offline'}
+                      {(profile.vrchatStatus || profile.status) === 'join me' ? 'Join Me' :
+                       (profile.vrchatStatus || profile.status) === 'ask me' ? 'Ask Me' :
+                       (profile.vrchatStatus || profile.status) || 'Offline'}
                     </span>
                   </span>
                   
@@ -171,24 +198,24 @@ const VRChatDashboard = ({
               </div>
             </div>
 
-            {profile.location && (
+            {(profile.vrchatLocation || profile.location) && (
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                   <MapPinIcon className="w-4 h-4" />
                   <span>
-                    {profile.location.includes('wrld_') ? 'Em mundo público' :
-                     profile.location.includes('private') ? 'Mundo privado' :
-                     profile.location === 'offline' ? 'Offline' :
-                     profile.location}
+                    {(profile.vrchatLocation || profile.location).includes('wrld_') ? 'Em mundo público' :
+                     (profile.vrchatLocation || profile.location).includes('private') ? 'Mundo privado' :
+                     (profile.vrchatLocation || profile.location) === 'offline' ? 'Offline' :
+                     (profile.vrchatLocation || profile.location)}
                   </span>
                 </div>
               </div>
             )}
 
-            {profile.statusDescription && (
+            {(profile.vrchatStatusDescription || profile.statusDescription) && (
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                  "{profile.statusDescription}"
+                  "{profile.vrchatStatusDescription || profile.statusDescription}"
                 </p>
               </div>
             )}
