@@ -45,6 +45,7 @@ const VRChatAPIPage = () => {
     clearError,
     refresh,
     updateAuth,
+    getProfile,
     getFriends,
     getRecentWorlds,
     getStats,
@@ -181,44 +182,46 @@ const VRChatAPIPage = () => {
     
     setLoadingDashboard(true)
     try {
-      const [friendsResult, worldsResult, statsResult] = await Promise.all([
-        getFriends(),
-        getRecentWorlds(),
-        getStats()
-      ])
-
-      const data = {
-        profile: connection?.currentUser || {},
-        friends: friendsResult.data?.friends || [],
-        recentWorlds: worldsResult.data?.recentWorlds || [],
-        stats: statsResult.data || {}
-      }
-
-      setDashboardData(data)
-      setFriends(data.friends)
-      setLastRefresh(new Date())
+      console.log('🔄 Carregando dados do dashboard...')
+      const result = await getDashboardData()
       
-      // Inicializar histórico de amigos se vazio
-      if (friendsHistory.size === 0 && data.friends.length > 0) {
-        const initialHistory = new Map()
-        data.friends.forEach(friend => {
-          initialHistory.set(friend.id, {
-            status: friend.status,
-            location: friend.location,
-            currentAvatarImageUrl: friend.currentAvatarImageUrl,
-            lastSeen: friend.last_login || friend.lastSeen,
-            displayName: friend.displayName
+      if (result.success && result.data) {
+        const data = {
+          profile: result.data.profile || connection?.currentUser || {},
+          friends: result.data.friends?.friends || [],
+          recentWorlds: result.data.recentWorlds?.recentWorlds || [],
+          stats: result.data.stats || {}
+        }
+
+        console.log('✅ Dados do dashboard carregados:', data)
+        setDashboardData(data)
+        setFriends(data.friends)
+        setLastRefresh(new Date())
+        
+        // Inicializar histórico de amigos se vazio
+        if (friendsHistory.size === 0 && data.friends.length > 0) {
+          const initialHistory = new Map()
+          data.friends.forEach(friend => {
+            initialHistory.set(friend.id, {
+              status: friend.status,
+              location: friend.location,
+              currentAvatarImageUrl: friend.currentAvatarImageUrl,
+              lastSeen: friend.last_login || friend.lastSeen,
+              displayName: friend.displayName
+            })
           })
-        })
-        setFriendsHistory(initialHistory)
+          setFriendsHistory(initialHistory)
+        }
+      } else {
+        console.error('❌ Falha ao carregar dados do dashboard:', result.error)
       }
       
     } catch (error) {
-      console.error('Erro ao carregar dados do dashboard:', error)
+      console.error('❌ Erro ao carregar dados do dashboard:', error)
     } finally {
       setLoadingDashboard(false)
     }
-  }, [isConnected, getFriends, getRecentWorlds, getStats, connection, friendsHistory])
+  }, [isConnected, getDashboardData, connection, friendsHistory])
 
   // Carregar dados quando conectado
   useEffect(() => {
@@ -229,10 +232,12 @@ const VRChatAPIPage = () => {
 
   // Handlers para componentes
   const handleLoginSubmit = useCallback(async (credentials) => {
-    return await initiateConnection(credentials)
+    console.log('🔐 Iniciando conexão com VRChat:', credentials)
+    return await initiateConnection(credentials.username, credentials.password)
   }, [initiateConnection])
 
   const handle2FASubmit = useCallback(async (twoFactorCode) => {
+    console.log('🔑 Submetendo código 2FA:', twoFactorCode)
     return await complete2FAConnection(twoFactorCode)
   }, [complete2FAConnection])
 
@@ -288,6 +293,7 @@ const VRChatAPIPage = () => {
             profile={dashboardData?.profile}
             stats={dashboardData?.stats}
             recentWorlds={dashboardData?.recentWorlds}
+            friends={friends}
             onRefresh={handleRefresh}
             loading={loadingDashboard}
           />
@@ -351,7 +357,7 @@ const VRChatAPIPage = () => {
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-md">
             <VRChatAuth
-              onLoginSubmit={handleLoginSubmit}
+              onConnect={handleLoginSubmit}
               on2FASubmit={handle2FASubmit}
               loading={loading || isConnecting}
               error={error}

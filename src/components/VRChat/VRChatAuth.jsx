@@ -30,7 +30,10 @@ const VRChatAuth = ({
     if (!loginData.username || !loginData.password) return
     if (loading) return
 
-    await onConnect(loginData.username, loginData.password)
+    await onConnect({
+      username: loginData.username,
+      password: loginData.password
+    })
   }
 
   const handle2FASubmit = async (e) => {

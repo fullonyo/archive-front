@@ -80,13 +80,13 @@ const ImageWithLoading = ({
       addToCache(src, 'loading')
 
       // Set a loading timeout to prevent infinite loading
-      loadTimeoutRef.current = setTimeout(() => {
-        if (imageState === 'loading') {
-          console.log(`Image loading timeout for: ${src}`)
-          addToCache(src, 'error', 'Timeout')
-          handleError(new Error('Loading timeout'))
-        }
+      const timeout = setTimeout(() => {
+        console.log(`Image loading timeout for: ${src}`)
+        addToCache(src, 'error', 'Timeout')
+        setImageState('error')
+        setShowSkeleton(false)
       }, 10000) // 10 second timeout
+      loadTimeoutRef.current = timeout
     } else {
       setImageState('error')
       setShowSkeleton(false)
@@ -96,50 +96,57 @@ const ImageWithLoading = ({
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current)
     }
-  }, [src, isValidUrl, getFromCache, addToCache, needsProxy])
+  }, [src]) // Removidas as dependências que causavam o loop
 
   const handleLoad = useCallback((e) => {
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current)
     
+    const srcAtLoad = currentSrc
+    
     setImageState('loaded')
     // Add successful load to cache
-    addToCache(currentSrc, 'success')
+    addToCache(srcAtLoad, 'success')
     // Shorter delay for quicker transition
     setTimeout(() => setShowSkeleton(false), 150)
     
     if (onLoad) {
       onLoad(e)
     }
-  }, [onLoad, currentSrc, addToCache])
+  }, [onLoad]) // Mantemos apenas onLoad como dependência necessária
 
   const handleError = useCallback(async (e) => {
     if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current)
     
-    console.log(`Image load failed for: ${currentSrc}, attempt ${attemptIndex + 1}`)
+    const srcAtError = currentSrc
+    const attemptAtError = attemptIndex
+    const alternativesAtError = alternativeUrls
+    const retryCountAtError = retryCount
+    
+    console.log(`Image load failed for: ${srcAtError}, attempt ${attemptAtError + 1}`)
     
     // Add failed URL to cache
-    addToCache(currentSrc, 'error', 'Load failed')
+    addToCache(srcAtError, 'error', 'Load failed')
     
     // Try alternative URLs if available
-    if (attemptIndex < alternativeUrls.length) {
-      const nextUrl = alternativeUrls[attemptIndex]
-      console.log(`Trying alternative URL ${attemptIndex + 1}/${alternativeUrls.length}: ${nextUrl}`)
+    if (attemptAtError < alternativesAtError.length) {
+      const nextUrl = alternativesAtError[attemptAtError]
+      console.log(`Trying alternative URL ${attemptAtError + 1}/${alternativesAtError.length}: ${nextUrl}`)
       setAttemptIndex(prev => prev + 1)
       setCurrentSrc(nextUrl)
       return
     }
     
     // Try retry with delay if enabled and retries left
-    if (enableRetry && retryCount < maxRetries) {
+    if (enableRetry && retryCountAtError < maxRetries) {
       setImageState('retrying')
       setRetryCount(prev => prev + 1)
       
       timeoutRef.current = setTimeout(() => {
-        console.log(`Retrying image load (${retryCount + 1}/${maxRetries}) for: ${src}`)
+        console.log(`Retrying image load (${retryCountAtError + 1}/${maxRetries}) for: ${src}`)
         setImageState('loading')
         setAttemptIndex(0)
         setCurrentSrc(src)
-      }, retryDelay * (retryCount + 1)) // Exponential backoff
+      }, retryDelay * (retryCountAtError + 1)) // Exponential backoff
       return
     }
     
@@ -152,7 +159,7 @@ const ImageWithLoading = ({
     if (onError) {
       onError(e)
     }
-  }, [currentSrc, attemptIndex, alternativeUrls, enableRetry, retryCount, maxRetries, retryDelay, src, onError, addToCache])
+  }, [enableRetry, maxRetries, retryDelay, src, onError]) // Apenas dependências realmente necessárias
 
   // Manual retry function
   const retryLoad = useCallback(() => {

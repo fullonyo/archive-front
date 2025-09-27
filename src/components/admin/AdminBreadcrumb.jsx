@@ -5,6 +5,7 @@ const SECTION_NAMES = {
   'dashboard': 'Dashboard',
   'access-requests': 'Aprovações de Cadastro',
   'assets': 'Aprovação de Assets',
+  'asset-management': 'Deletar Assets',
   'permissions': 'Gerenciamento de Permissões',
   'users': 'Listagem de Usuários',
   'account-management': 'Gerenciamento de Contas'

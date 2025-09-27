@@ -27,6 +27,7 @@ import PermissionsSection from '../components/admin/PermissionsSection'
 import UsersSection from '../components/admin/UsersSection'
 import AccountManagementSection from '../components/admin/AccountManagementSection'
 import AssetsSection from '../components/admin/AssetsSection'
+import AssetManagementSection from '../components/admin/AssetManagementSection'
 import AdminBreadcrumb from '../components/admin/AdminBreadcrumb'
 
 // Configuração de cores e estilos dos cards
@@ -389,6 +390,18 @@ const AdminPage = () => {
             </div>
           </div>
         )
+      case 'asset-management':
+        return (
+          <div className="min-h-screen bg-gray-900 p-4 sm:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto">
+              <AdminBreadcrumb 
+                currentSection={currentSection} 
+                onNavigate={setCurrentSection} 
+              />
+              <AssetManagementSection {...sectionProps} />
+            </div>
+          </div>
+        )
       default:
         return renderDashboard()
     }
@@ -417,7 +430,7 @@ const AdminPage = () => {
         </div>
 
         {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3 gap-6">
           {/* Aprovações de Cadastro */}
           <AdminDashboardCard
             icon={UserPlusIcon}
@@ -444,6 +457,19 @@ const AdminPage = () => {
             index={1}
           />
 
+          {/* Deletar Assets */}
+          <AdminDashboardCard
+            icon={TrashIcon}
+            title="Deletar Assets"
+            description="Deletar assets da plataforma de forma permanente"
+            count={stats.totalAssets}
+            color="red"
+            onClick={() => setCurrentSection('asset-management')}
+            permission="delete_assets"
+            isLoading={loading}
+            index={2}
+          />
+
           {/* Gerenciamento de Permissões */}
           <AdminDashboardCard
             icon={CogIcon}
@@ -453,7 +479,7 @@ const AdminPage = () => {
             onClick={() => setCurrentSection('permissions')}
             permission="manage_permissions"
             isLoading={loading}
-            index={2}
+            index={3}
           />
 
           {/* Listagem de Usuários */}
@@ -466,7 +492,7 @@ const AdminPage = () => {
             onClick={() => setCurrentSection('users')}
             permission="view_user_details"
             isLoading={loading}
-            index={3}
+            index={4}
           />
 
           {/* Gerenciamento de Contas */}
@@ -479,7 +505,7 @@ const AdminPage = () => {
             onClick={() => setCurrentSection('account-management')}
             permission="manage_users"
             isLoading={loading}
-            index={4}
+            index={5}
           />
         </div>
 

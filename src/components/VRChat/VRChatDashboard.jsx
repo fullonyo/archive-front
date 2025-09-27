@@ -1,206 +1,331 @@
-import React from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { 
+  UserIcon,
   UserGroupIcon,
   ClockIcon,
   GlobeAltIcon,
   HeartIcon,
   UsersIcon,
   ChartBarIcon,
-  ArrowPathIcon 
+  ArrowPathIcon,
+  MapPinIcon,
+  CalendarIcon,
+  StarIcon
 } from '@heroicons/react/24/outline'
 import VRChatLoading from '../ui/VRChatLoading'
 
-const VRChatDashboard = ({ profile, stats, recentWorlds, onRefresh, loading }) => {
+const VRChatDashboard = ({ 
+  profile, 
+  stats, 
+  recentWorlds = [], 
+  friends = [],
+  onRefresh, 
+  loading 
+}) => {
+  // Calcular estatísticas em tempo real dos amigos
+  const friendStats = useMemo(() => {
+    if (!friends || !Array.isArray(friends)) {
+      return {
+        total: 0,
+        online: 0,
+        inWorlds: 0,
+        private: 0
+      }
+    }
+
+    return {
+      total: friends.length,
+      online: friends.filter(f => f.status && f.status !== 'offline').length,
+      inWorlds: friends.filter(f => f.location && !f.location.includes('offline') && !f.location.includes('private')).length,
+      private: friends.filter(f => f.location && f.location.includes('private')).length
+    }
+  }, [friends])
+
+  // Calcular tempo desde último login se disponível
+  const getLastSeenText = (profile) => {
+    if (!profile?.last_login && !profile?.date_joined) return 'Desconhecido'
+    
+    const lastLogin = new Date(profile.last_login || profile.date_joined)
+    const now = new Date()
+    const diffMs = now - lastLogin
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffHours / 24)
+    
+    if (diffDays > 7) return `${diffDays} dias atrás`
+    if (diffDays > 0) return `${diffDays}d atrás`
+    if (diffHours > 0) return `${diffHours}h atrás`
+    return 'Agora mesmo'
+  }
+
+  // Debug dos dados recebidos
+  useEffect(() => {
+    console.log('🔍 VRChatDashboard - Dados recebidos:', {
+      profile: profile,
+      stats: stats,
+      recentWorlds: recentWorlds,
+      friends: friends?.length || 0,
+      loading: loading
+    })
+  }, [profile, stats, recentWorlds, friends, loading])
+
   return (
     <motion.div
       key="dashboard"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="space-y-4"
+      className="space-y-6"
     >
-      {/* Perfil Card - Estilo minimalista */}
-      {profile && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      {/* Header do Dashboard */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+            Visão geral da sua atividade no VRChat
+          </p>
+        </div>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+        >
+          <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <span className="text-sm font-medium">Atualizar</span>
+        </button>
+      </div>
+
+      {/* Perfil Card Minimalista */}
+      {loading ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="p-6 flex items-center space-x-4">
+            <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse" />
+            <div className="flex-1">
+              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded animate-pulse mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse w-2/3" />
+            </div>
+          </div>
+        </div>
+      ) : profile && Object.keys(profile).length > 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="p-6">
-            <div className="flex items-start space-x-4">
-              <img
-                src={profile.profilePicOverride || profile.userIcon}
-                alt={profile.displayName}
-                className="w-16 h-16 rounded-full object-cover bg-gray-200 dark:bg-gray-600"
-                onError={(e) => {
-                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRDFENUREIiByeD0iMzIiLz48cGF0aCBkPSJNMzIgMTZDMjQuOTU4IDE2IDIwIDIxLjk1OCAyMCAzMlMyNC45NTggNDggMzIgNDhTNDQgNDIuMDQyIDQ0IDMyUzM5LjA0MiAxNiAzMiAxNlpNMzIgNDBDMjguNjg2IDQwIDI2IDM3LjMxNCAyNiAzNFMyOC42ODYgMjggMzIgMjhTMzggMzAuNjg2IDM4IDM0UzM1LjMxNCA0MCAzMiA0MFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
-                }}
-              />
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <img
+                  src={profile.profilePicOverride || profile.userIcon || profile.currentAvatarImageUrl}
+                  alt={profile.displayName}
+                  className="w-16 h-16 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700"
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjM0I0MDQ4IiByeD0iMzIiLz48cGF0aCBkPSJNMzIgMTZDMjQuOTU4IDE2IDIwIDIxLjk1OCAyMCAzMlMyNC45NTggNDggMzIgNDhTNDQgNDIuMDQyIDQ0IDMyUzM5LjA0MiAxNiAzMiAxNlpNMzIgNDBDMjguNjg2IDQwIDI2IDM3LjMxNCAyNiAzNFMyOC42ODYgMjggMzIgMjhTMzggMzAuNjg2IDM4IDM0UzM1LjMxNCA0MCAzMiA0MFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
+                  }}
+                />
+                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 ${
+                  profile.status === 'online' ? 'bg-green-500' :
+                  profile.status === 'join me' ? 'bg-blue-500' :
+                  profile.status === 'ask me' ? 'bg-yellow-500' :
+                  profile.status === 'busy' ? 'bg-red-500' :
+                  'bg-gray-400'
+                }`} />
+              </div>
+              
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{profile.displayName}</h2>
-                <p className="text-gray-600 dark:text-gray-400">@{profile.username}</p>
+                <div className="flex items-center space-x-3 mb-1">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                    {profile.displayName || 'Usuário'}
+                  </h2>
+                  {profile.tags && profile.tags.includes('system_trust_trusted') && (
+                    <div className="flex items-center space-x-1 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-2 py-1 rounded-full">
+                      <StarIcon className="w-3 h-3" />
+                      <span className="text-xs font-medium">Trusted</span>
+                    </div>
+                  )}
+                </div>
                 
-                <div className="flex items-center space-x-3 mt-3">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    profile.status === 'online' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
-                    profile.status === 'active' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
-                    profile.status === 'busy' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
-                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                <div className="flex items-center space-x-4 text-sm">
+                  <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full font-medium ${
+                    profile.status === 'online' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                    profile.status === 'join me' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
+                    profile.status === 'ask me' ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                    profile.status === 'busy' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                    'bg-gray-50 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                   }`}>
-                    <div className={`w-2 h-2 rounded-full mr-1 ${
-                      profile.status === 'online' ? 'bg-green-500' :
-                      profile.status === 'active' ? 'bg-blue-500' :
+                    <div className={`w-2 h-2 rounded-full ${
+                      profile.status === 'online' ? 'bg-green-500 animate-pulse' :
+                      profile.status === 'join me' ? 'bg-blue-500' :
+                      profile.status === 'ask me' ? 'bg-yellow-500' :
                       profile.status === 'busy' ? 'bg-red-500' :
                       'bg-gray-400'
                     }`} />
-                    {profile.status === 'online' && 'Online'}
-                    {profile.status === 'active' && 'Ativo'} 
-                    {profile.status === 'busy' && 'Ocupado'}
-                    {profile.status === 'offline' && 'Offline'}
+                    <span className="capitalize">
+                      {profile.status === 'join me' ? 'Join Me' :
+                       profile.status === 'ask me' ? 'Ask Me' :
+                       profile.status || 'Offline'}
+                    </span>
                   </span>
                   
-                  {profile.location && (
-                    <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                      <GlobeAltIcon className="w-4 h-4 mr-1" />
-                      {profile.location}
-                    </span>
-                  )}
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+                    <CalendarIcon className="w-3 h-3" />
+                    <span>{getLastSeenText(profile)}</span>
+                  </span>
                 </div>
               </div>
             </div>
-            
-            {profile.bio && (
+
+            {profile.location && (
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <MapPinIcon className="w-4 h-4" />
+                  <span>
+                    {profile.location.includes('wrld_') ? 'Em mundo público' :
+                     profile.location.includes('private') ? 'Mundo privado' :
+                     profile.location === 'offline' ? 'Offline' :
+                     profile.location}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {profile.statusDescription && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                  {profile.bio}
+                  "{profile.statusDescription}"
                 </p>
               </div>
             )}
           </div>
         </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="p-6 text-center">
+            <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400 font-medium">Dados do perfil não encontrados</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+              Verifique sua conexão com o VRChat
+            </p>
+          </div>
+        </div>
       )}
 
-      {/* Stats Grid - Estilo clean */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Grid de Estatísticas */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <UserGroupIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Amigos</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {stats?.totalFriends || 0}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Amigos</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {friendStats.total}
               </p>
+            </div>
+            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+              <UserGroupIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <ClockIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Online</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {stats?.onlineFriends || 0}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Online</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {friendStats.online}
               </p>
+            </div>
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
             </div>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <GlobeAltIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Mundos</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {stats?.worldsVisited || 0}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Em Mundos</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {friendStats.inWorlds}
               </p>
+            </div>
+            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+              <GlobeAltIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <HeartIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Favoritos</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {stats?.favoriteWorlds || 0}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Privados</p>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {friendStats.private}
               </p>
+            </div>
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+              <UserIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mundos Recentes - Estilo feed */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+      {/* Mundos Recentes */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Mundos Recentes</h3>
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Mundos Recentes</h3>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {recentWorlds?.length || 0} mundos
+            </div>
           </div>
         </div>
 
         <div className="p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <VRChatLoading size="md" type="world" showText={false} />
+              <VRChatLoading size="lg" type="world" text="Carregando mundos..." />
             </div>
           ) : !recentWorlds || recentWorlds.length === 0 ? (
             <div className="text-center py-12">
-              <GlobeAltIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">Nenhum mundo recente encontrado</p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+              <GlobeAltIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 dark:text-gray-400 font-medium">Nenhum mundo recente</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
                 Visite alguns mundos no VRChat para vê-los aqui!
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {recentWorlds.slice(0, 6).map((world, index) => (
                 <motion.div
                   key={world.id || index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="group cursor-pointer"
+                  className="group cursor-pointer bg-gray-50 dark:bg-gray-700/30 rounded-lg overflow-hidden hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all duration-200"
                 >
-                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg overflow-hidden hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <div className="aspect-video bg-gray-200 dark:bg-gray-600 relative overflow-hidden">
-                      <img
-                        src={world.imageUrl || world.thumbnailImageUrl}
-                        alt={world.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjNGNEY2Ii8+PHBhdGggZD0iTTE2MCA3MEMxNDcuODUgNzAgMTM4IDc5Ljg1IDEzOCA5MlMxNDcuODUgMTE0IDE2MCAxMTRTMTgyIDEwNC4xNSAxODIgOTJTMTcyLjE1IDcwIDE2MCA3MFpNMTYwIDEwNEMxNTMuMzcgMTA0IDE0OCA5OC42MyAxNDggOTJTMTUzLjM3IDgwIDE2MCA4MFMxNzIgODUuMzcgMTcyIDkyUzE2Ni42MyAxMDQgMTYwIDEwNFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
-                        }}
-                      />
-                      
-                      {world.occupants !== undefined && (
-                        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-white px-2 py-1 rounded-md text-xs">
-                          <UsersIcon className="w-3 h-3 inline mr-1" />
-                          {world.occupants}
-                        </div>
-                      )}
-                    </div>
+                  <div className="aspect-video relative overflow-hidden bg-gray-200 dark:bg-gray-600">
+                    <img
+                      src={world.imageUrl || world.thumbnailImageUrl}
+                      alt={world.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      onError={(e) => {
+                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjMzc0MTUxIi8+PHBhdGggZD0iTTE2MCA3MEMxNDcuODUgNzAgMTM4IDc5Ljg1IDEzOCA5MlMxNDcuODUgMTE0IDE2MCAxMTRTMTgyIDEwNC4xNSAxODIgOTJTMTcyLjE1IDcwIDE2MCA3MFpNMTYwIDEwNEMxNTMuMzcgMTA0IDE0OCA5OC42MyAxNDggOTJTMTUzLjM3IDgwIDE2MCA4MFMxNzIgODUuMzcgMTcyIDkyUzE2Ni42MyAxMDQgMTYwIDEwNFoiIGZpbGw9IiM5Q0E0QTgiLz48L3N2Zz4='
+                      }}
+                    />
                     
-                    <div className="p-3">
-                      <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">
-                        {world.name}
-                      </h4>
-                      <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
+                    {world.occupants !== undefined && (
+                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-md text-xs font-medium">
+                        <UsersIcon className="w-3 h-3 inline mr-1" />
+                        {world.occupants}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="p-4">
+                    <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-relaxed">
+                      {world.name}
+                    </h4>
+                    {world.authorName && (
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-2">
                         por {world.authorName}
                       </p>
-                    </div>
+                    )}
                   </div>
                 </motion.div>
               ))}
