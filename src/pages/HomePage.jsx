@@ -139,7 +139,7 @@ const HomePage = () => {
     ]
 
   return (
-    <div className="h-screen w-full relative bg-gray-900 overflow-hidden">
+    <div className="min-h-screen w-full relative bg-gray-900">
       {/* Discord Button */}
       <motion.a
         href="https://discord.gg/vrchieve"
@@ -160,20 +160,14 @@ const HomePage = () => {
         </svg>
       </motion.a>
 
-      {/* Matrix Background estável */}
-      <StableMatrixBackground 
-        stabilityDependencies={stabilityDependencies}
-        fallbackType="vrchat"
-      />
-
       {/* Main Content */}
-      <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
         {/* Welcome Section */}
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="h-full flex flex-col"
+          className="py-8 pb-16"
         >
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -198,7 +192,7 @@ const HomePage = () => {
           </motion.div>
 
           {isAuthenticated ? (
-            <div className="flex-1 flex flex-col space-y-4">
+            <div className="space-y-6">
               {/* Quick Actions */}
               <motion.div 
                 initial={{ opacity: 0 }}
@@ -257,7 +251,7 @@ const HomePage = () => {
               </motion.div>
 
               {/* Main Dashboard Grid */}
-              <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
                 {/* Left Column - Stats and Rankings */}
                 <div className="xl:col-span-8 space-y-4">
                   {/* Stats Overview */}
@@ -310,7 +304,7 @@ const HomePage = () => {
                   </motion.div>
 
                   {/* Recent Activity Component */}
-                  <div className="flex-1">
+                  <div>
                     <RecentActivity />
                   </div>
                 </div>
@@ -320,7 +314,7 @@ const HomePage = () => {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.8 }}
-                  className="xl:col-span-4 self-start"
+                  className="xl:col-span-4"
                 >
                   <UserRankingCard />
                 </motion.div>

@@ -5,7 +5,6 @@ import { usePermissions } from './hooks/usePermissions'
 
 // Layout components
 import Navbar from './components/layout/Navbar'
-import Footer from './components/layout/Footer'
 import MatrixLayout from './components/layout/MatrixLayout'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import MatrixBackgroundProvider from './components/ui/MatrixBackgroundProvider'
