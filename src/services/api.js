@@ -154,7 +154,13 @@ export const usersAPI = {
 // Assets API
 export const assetsAPI = {
   getAssets: (params) => api.get('/assets', { params }),
-  getAsset: (id) => api.get(`/assets/${id}`),
+  getAsset: (id) => api.get(`/assets/${id}`, {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }),
   uploadAsset: (formData, onUploadProgress) => {
     return api.post('/assets', formData, {
       headers: { 
@@ -170,7 +176,11 @@ export const assetsAPI = {
   updateAsset: (id, data) => api.put(`/assets/${id}`, data),
   deleteAsset: (id) => api.delete(`/assets/${id}`),
   downloadAsset: (id) => api.get(`/assets/${id}/download`),
-  toggleFavorite: (id) => api.post(`/assets/${id}/favorite`),
+  toggleFavorite: (id) => api.post(`/assets/${id}/favorite`, {}, {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
+  }),
   addReview: (id, data) => api.post(`/assets/${id}/review`, data),
   getReviews: (id, params) => api.get(`/assets/${id}/reviews`, { params }),
   getCategories: () => api.get('/assets/categories/list'),

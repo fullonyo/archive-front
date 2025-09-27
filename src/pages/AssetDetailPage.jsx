@@ -34,10 +34,12 @@ import AssetReviews from '../components/assets/AssetReviews'
 import { getGoogleDriveImageUrl, handleImageError } from '../utils/googleDriveUtils'
 import { getProxiedImageUrl, needsProxy } from '../utils/imageProxy'
 import { processTags } from '../utils/tagUtils'
+import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
 
 const AssetDetailPage = () => {
   const { id } = useParams()
+  const { user } = useAuth()
   const [asset, setAsset] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -60,9 +62,10 @@ const AssetDetailPage = () => {
           console.log('Asset createdAt:', assetData.createdAt, typeof assetData.createdAt)
           console.log('Asset updatedAt:', assetData.updatedAt, typeof assetData.updatedAt)
           console.log('User createdAt:', assetData.user?.createdAt, typeof assetData.user?.createdAt)
+          console.log('Asset isLiked:', assetData.isLiked)
           
           setAsset(assetData)
-          setIsLiked(response.data.data.isLiked || false)
+          setIsLiked(assetData.isLiked || false)
         } else {
           throw new Error('Asset not found or invalid response')
         }
@@ -111,29 +114,71 @@ const AssetDetailPage = () => {
   }
 
   const handleLike = async () => {
+    if (!user) {
+      toast.error('Você precisa estar logado para curtir assets');
+      return;
+    }
+
     try {
-      const response = await assetsAPI.toggleFavorite(id)
-      const newIsLiked = !isLiked
+      // Optimistic update
+      const newIsLiked = !isLiked;
+      setIsLiked(newIsLiked);
       
-      setIsLiked(newIsLiked)
+      // Update favorite count optimistically
       setAsset(prev => ({
         ...prev,
         _count: {
           ...prev._count,
           favorites: prev._count.favorites + (newIsLiked ? 1 : -1)
         }
-      }))
+      }));
+
+      const response = await assetsAPI.toggleFavorite(id);
+      console.log('Toggle favorite response:', response?.data);
       
-      // Show success message
-      if (newIsLiked) {
-        toast.success('💖 Asset adicionado aos favoritos!')
+      if (response?.data?.success) {
+        // Use the server state to confirm
+        const serverIsLiked = response.data.data.isFavorited;
+        console.log('Server isLiked state:', serverIsLiked);
+        setIsLiked(serverIsLiked);
+        
+        // Refresh asset data to ensure consistency
+        const assetResponse = await assetsAPI.getAsset(id);
+        if (assetResponse?.data?.success) {
+          const updatedAsset = assetResponse.data.data.asset;
+          setAsset(updatedAsset);
+          // Double check the isLiked state from fresh data
+          setIsLiked(updatedAsset.isLiked);
+          console.log('Fresh asset isLiked:', updatedAsset.isLiked);
+        }
+        
+        // Show success message based on server state
+        // Toast removed for cleaner UX
       } else {
-        toast.success('Asset removido dos favoritos')
+        // Revert optimistic update on failure
+        setIsLiked(!newIsLiked);
+        setAsset(prev => ({
+          ...prev,
+          _count: {
+            ...prev._count,
+            favorites: prev._count.favorites + (!newIsLiked ? 1 : -1)
+          }
+        }));
       }
     } catch (err) {
-      console.error('Error toggling like:', err)
-      const errorMessage = err.response?.data?.message || 'Erro ao curtir asset'
-      toast.error(errorMessage)
+      console.error('Error toggling like:', err);
+      // Revert optimistic update on error
+      setIsLiked(!isLiked);
+      setAsset(prev => ({
+        ...prev,
+        _count: {
+          ...prev._count,
+          favorites: prev._count.favorites + (!isLiked ? 1 : -1)
+        }
+      }));
+      
+      const errorMessage = err.response?.data?.message || 'Erro ao curtir asset';
+      toast.error(errorMessage);
     }
   }
 
