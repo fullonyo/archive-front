@@ -188,7 +188,7 @@ const UserAssetsList = ({ onAssetUpload = null, className = '' }) => {
                           className="group"
                         >
                           <Link
-                            to={`/assets/${asset.id}`}
+                            to={`/asset/${asset.id}`}
                             className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-700 transition-colors"
                             onClick={() => setIsOpen(false)}
                           >

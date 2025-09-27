@@ -137,7 +137,14 @@ export const usersAPI = {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
-  getUserAssets: (params) => api.get('/users/assets', { params }),
+  getUserAssets: (params) => api.get('/users/assets', { 
+    params,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }),
   getFavorites: (params) => api.get('/users/favorites', { params }),
   deleteAccount: () => api.delete('/users/account'),
   getTopUploaders: (params) => api.get('/users/top-uploaders', { params }),
