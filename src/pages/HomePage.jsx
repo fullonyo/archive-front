@@ -15,7 +15,6 @@ import {
 import UserRankingCard from '../components/dashboard/UserRankingCard'
 import RecentActivity from '../components/dashboard/RecentActivity'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import StableMatrixBackground from '../components/ui/StableMatrixBackground'
 import { useHomePageData } from '../hooks/useHomePageData'
 import { formatNumber } from '../utils/formatUtils'
 
@@ -130,16 +129,8 @@ const HomePage = () => {
       hasAdminAccess = false
     }
 
-    // Dependências para estabilidade do background
-    const stabilityDependencies = [
-      isAuthenticated,
-      statsLoading,
-      permissionsLoading,
-      user?.id
-    ]
-
   return (
-    <div className="min-h-screen w-full relative bg-gray-900">
+    <div className="relative">
       {/* Discord Button */}
       <motion.a
         href="https://discord.gg/vrchieve"
@@ -161,13 +152,12 @@ const HomePage = () => {
       </motion.a>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
         {/* Welcome Section */}
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="py-8 pb-16"
         >
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
