@@ -24,6 +24,7 @@ import { useCurrentCategory } from '../hooks/useCurrentCategory'
 import { useLoadingState } from '../hooks/useLoadingState'
 import { VIEW_MODES } from '../constants/categories'
 import useTags from '../hooks/useTags'
+import { clearCache } from '../hooks/useCachedAPI'
 
 const CategoriesPage = () => {
   const { user } = useAuth()
@@ -36,7 +37,7 @@ const CategoriesPage = () => {
   }, [selectedTagFromURL])
   
   // Custom hooks
-  const { categories, loading: categoriesLoading, findCategoryById, fetchSubcategoryDetails } = useCategories()
+  const { categories, loading: categoriesLoading, findCategoryById, fetchSubcategoryDetails, refetch: refetchCategories, forceRefresh: forceRefreshCategories } = useCategories()
   
   // Hook para categoria atual
   const {
@@ -118,6 +119,75 @@ const CategoriesPage = () => {
     { value: categoryStats.totalCategories, label: 'categorias', color: 'text-purple-400' },
     { value: 2, label: 'plataformas', color: 'text-green-400' }
   ], [categoryStats])
+
+  // Effect para escutar eventos de atualização de cache
+  useEffect(() => {
+    const handleCacheUpdate = (eventType = 'unknown') => {
+      console.log(`Categories cache update triggered by: ${eventType}`)
+      
+      // Limpar caches relacionados
+      const cacheKeysToInvalidate = [
+        'all_categories',
+        'categories-data', 
+        'categories-with-assets',
+        'dashboard-categories',
+        'categories',
+        'categories_with_counts',
+        'dashboard_data'
+      ];
+      
+      cacheKeysToInvalidate.forEach(key => {
+        clearCache(key);
+        console.log(`Cleared cache key: ${key}`);
+      });
+      
+      // Limpar todo o cache se disponível
+      if (window.clearAllCache) {
+        console.log('🧹 Limpando todo o cache frontend')
+        window.clearAllCache();
+      }
+      
+      // Limpar cache sem chave específica
+      clearCache();
+      
+      // Forçar refresh dos dados
+      setTimeout(() => {
+        console.log('Force refreshing categories data...');
+        forceRefreshCategories();
+      }, 200); // Delay maior para garantir que o cache foi completamente limpo
+    }
+
+    const handleCategoriesUpdated = () => handleCacheUpdate('categoriesUpdated');
+    const handleAssetUploaded = () => handleCacheUpdate('assetUploaded');  
+    const handleAssetDeleted = () => handleCacheUpdate('assetDeleted');
+    const handleAssetApproved = () => handleCacheUpdate('assetApproved');
+    const handleAssetRejected = () => handleCacheUpdate('assetRejected');
+
+    // Escutar eventos customizados de atualização de cache
+    window.addEventListener('categoriesUpdated', handleCategoriesUpdated)
+    window.addEventListener('assetUploaded', handleAssetUploaded)
+    window.addEventListener('assetDeleted', handleAssetDeleted)
+    window.addEventListener('assetApproved', handleAssetApproved)
+    window.addEventListener('assetRejected', handleAssetRejected)
+
+    return () => {
+      window.removeEventListener('categoriesUpdated', handleCategoriesUpdated)
+      window.removeEventListener('assetUploaded', handleAssetUploaded)
+      window.removeEventListener('assetDeleted', handleAssetDeleted)
+      window.removeEventListener('assetApproved', handleAssetApproved)
+      window.removeEventListener('assetRejected', handleAssetRejected)
+    }
+  }, [forceRefreshCategories])
+
+  // Effect para refresh periódico das categorias (mais frequente)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('⏰ Periodic refresh of categories (1 min)')
+      forceRefreshCategories()
+    }, 60 * 1000) // Refresh a cada 1 minuto
+
+    return () => clearInterval(interval)
+  }, [forceRefreshCategories])
 
   if (isMainLoading) {
     const loadingMessage = isInitialLoading 

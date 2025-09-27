@@ -8,12 +8,14 @@ export const useCategories = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchCategories = async () => {
+  const fetchCategories = async (forceRefresh = false) => {
     try {
       setLoading(true)
       setError(null)
       
-      const response = await api.get('/categories?include_assets=true')
+      // Se forçar refresh, adicionar timestamp para evitar cache do navegador
+      const timestamp = forceRefresh ? `?t=${Date.now()}&include_assets=true` : '?include_assets=true'
+      const response = await api.get(`/categories${timestamp}`)
       console.log('Categories API response:', response.data)
       
       let categoriesData = response.data
@@ -30,6 +32,7 @@ export const useCategories = () => {
       }
       
       setCategories(categoriesData)
+      console.log('Categories updated:', categoriesData.length, 'categories loaded')
     } catch (error) {
       console.error('Error fetching categories:', error)
       const errorMessage = error.response?.status 
@@ -67,6 +70,7 @@ export const useCategories = () => {
     loading,
     error,
     refetch: fetchCategories,
+    forceRefresh: () => fetchCategories(true),
     findCategoryById,
     fetchSubcategoryDetails
   }

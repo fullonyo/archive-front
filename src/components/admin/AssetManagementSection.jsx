@@ -151,7 +151,7 @@ const AssetCard = ({ asset, onView, onDelete }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja deletar este asset? Esta ação não pode ser desfeita.')) {
+    if (window.confirm('⚠️ ATENÇÃO: Esta ação irá deletar o asset PERMANENTEMENTE do banco de dados!\n\nO asset e todos os dados relacionados (downloads, favoritos, avaliações) serão removidos e NÃO PODEM ser recuperados.\n\nTem certeza que deseja continuar?')) {
       setIsProcessing(true)
       try {
         await onDelete(asset.id)
@@ -321,13 +321,14 @@ const AssetCard = ({ asset, onView, onDelete }) => {
               onClick={() => setShowDeleteModal(true)}
               disabled={isProcessing}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 hover:border-red-600/50 rounded-lg text-red-400 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Deletar permanentemente do banco de dados"
             >
               {isProcessing ? (
                 <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <TrashIcon className="w-4 h-4" />
               )}
-              Deletar
+              Deletar Permanente
             </button>
           </div>
         </div>
@@ -356,7 +357,7 @@ const AssetCard = ({ asset, onView, onDelete }) => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">
-                    Deletar Asset
+                    🗑️ Deletar Asset Permanentemente
                   </h3>
                   <p className="text-slate-400 text-sm">
                     Esta ação não pode ser desfeita
@@ -365,10 +366,10 @@ const AssetCard = ({ asset, onView, onDelete }) => {
               </div>
               
               <p className="text-slate-300 mb-6">
-                Tem certeza que deseja deletar o asset <strong>"{asset.title}"</strong>?
+                Tem certeza que deseja deletar permanentemente o asset <strong>"{asset.title}"</strong>?
                 <br />
                 <span className="text-red-400 text-sm">
-                  O asset ficará inativo e não será mais visível para os usuários.
+                  ⚠️ ATENÇÃO: Esta ação irá remover o asset e todos os dados relacionados (downloads, favoritos, avaliações) permanentemente do banco de dados. Esta ação NÃO PODE ser desfeita.
                 </span>
               </p>
 
@@ -384,7 +385,7 @@ const AssetCard = ({ asset, onView, onDelete }) => {
                   disabled={isProcessing}
                   className="flex-1 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 hover:border-red-600/50 rounded-lg text-red-400 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isProcessing ? 'Deletando...' : 'Deletar'}
+                  {isProcessing ? 'Deletando permanentemente...' : 'Deletar Permanentemente'}
                 </button>
               </div>
             </motion.div>
@@ -657,6 +658,12 @@ const AssetManagementSection = ({ onBack }) => {
       await api.delete(`/admin/assets/${assetId}`)
       toast.success('Asset deletado com sucesso!')
       
+      // Disparar eventos para atualizar outros componentes
+      window.dispatchEvent(new CustomEvent('assetDeleted', { 
+        detail: { assetId } 
+      }));
+      window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+      
       loadAssets(currentPage, filters)
       loadStats()
     } catch (error) {
@@ -709,8 +716,8 @@ const AssetManagementSection = ({ onBack }) => {
           <ArrowLeftIcon className="w-6 h-6 text-slate-400" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-white">Gerenciamento de Assets - Deletar</h1>
-          <p className="text-slate-400">Deletar assets da plataforma de forma permanente</p>
+          <h1 className="text-2xl font-bold text-white">🗑️ Gerenciamento de Assets - Deletar Permanentemente</h1>
+          <p className="text-slate-400">Deletar assets da plataforma permanentemente do banco de dados</p>
         </div>
       </div>
 
@@ -742,11 +749,12 @@ const AssetManagementSection = ({ onBack }) => {
           <ExclamationTriangleIcon className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
           <div>
             <h3 className="text-red-400 font-semibold mb-1">
-              Atenção: Área de Deleção de Assets
+              ⚠️ Atenção: Deleção Permanente de Assets
             </h3>
             <p className="text-red-300/80 text-sm">
-              Esta área permite deletar assets permanentemente. Assets deletados ficarão inativos e não serão mais visíveis para os usuários. 
-              Esta ação pode ser revertida apenas reativando o asset no banco de dados.
+              Esta área permite deletar assets <strong>permanentemente</strong> do banco de dados. 
+              Assets deletados <strong>não podem ser recuperados</strong> e serão removidos junto com 
+              todos os dados relacionados (downloads, favoritos, avaliações). Esta ação é irreversível.
             </p>
           </div>
         </div>

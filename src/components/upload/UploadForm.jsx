@@ -21,6 +21,8 @@ import PlatformSelector from './PlatformSelector'
 import CategorySelector from './CategorySelector'
 import ExpandableTextarea from './ExpandableTextarea'
 import { assetsAPI } from '../../services/api'
+import { clearCache } from '../../hooks/useCachedAPI'
+import { CACHE_CONFIG } from '../../config/cache'
 
 import { ComputerDesktopIcon, DevicePhoneMobileIcon, BoltIcon } from '@heroicons/react/24/outline'
 
@@ -320,6 +322,42 @@ const UploadForm = ({ onUploadSuccess = null }) => {
         const { data } = response.data;
         const isAutoApproved = data.autoApproved;
         const userRole = data.userRole;
+        
+        // Limpar cache para atualizar dados em tempo real
+        // Limpar caches relacionados a assets e atividades
+        const cacheKeysToInvalidate = [
+          // Dashboard caches
+          'dashboard-stats',
+          'dashboard-recent', 
+          'dashboard-trending',
+          'dashboard-categories',
+          'dashboard-topusers',
+          
+          // Homepage caches
+          CACHE_CONFIG.HOMEPAGE_STATS,
+          CACHE_CONFIG.TOP_UPLOADERS,
+          CACHE_CONFIG.RECENT_ACTIVITY,
+          
+          // Assets caches
+          'assets-list',
+          'home-assets',
+          'categories-list',
+          'recent-assets',
+          
+          // Categories caches (important for categories page)
+          'all_categories',
+          'categories-data',
+          'categories-with-assets'
+        ];
+        
+        cacheKeysToInvalidate.forEach(key => clearCache(key));
+        console.log('Cache invalidated after successful upload');
+        
+        // Disparar eventos customizados para atualizar componentes
+        window.dispatchEvent(new CustomEvent('assetUploaded', { 
+          detail: { asset: data.asset } 
+        }));
+        window.dispatchEvent(new CustomEvent('categoriesUpdated'));
         
         // Chamar callback de sucesso se fornecida (antes das mensagens)
         if (onUploadSuccess) {

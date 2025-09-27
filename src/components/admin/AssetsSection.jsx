@@ -727,6 +727,17 @@ const AssetsSection = ({ onBack }) => {
       await api.put(`/admin/assets/${assetId}/approve`)
       toast.success('Asset aprovado com sucesso!')
       
+      // Limpar cache do frontend
+      if (window.clearAllCache) {
+        window.clearAllCache();
+      }
+      
+      // Disparar eventos para atualizar outros componentes
+      window.dispatchEvent(new CustomEvent('assetApproved', { 
+        detail: { assetId } 
+      }));
+      window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+      
       loadAssets(currentPage, filters)
       loadStats()
     } catch (error) {
@@ -740,6 +751,17 @@ const AssetsSection = ({ onBack }) => {
       await api.put(`/admin/assets/${assetId}/reject`, { reason })
       toast.success('Asset rejeitado com sucesso!')
       
+      // Limpar cache do frontend
+      if (window.clearAllCache) {
+        window.clearAllCache();
+      }
+      
+      // Disparar eventos para atualizar outros componentes
+      window.dispatchEvent(new CustomEvent('assetRejected', { 
+        detail: { assetId } 
+      }));
+      window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+      
       loadAssets(currentPage, filters)
       loadStats()
     } catch (error) {
@@ -752,6 +774,12 @@ const AssetsSection = ({ onBack }) => {
     try {
       await api.delete(`/admin/assets/${assetId}`)
       toast.success('Asset deletado com sucesso!')
+      
+      // Disparar eventos para atualizar outros componentes
+      window.dispatchEvent(new CustomEvent('assetDeleted', { 
+        detail: { assetId } 
+      }));
+      window.dispatchEvent(new CustomEvent('categoriesUpdated'));
       
       loadAssets(currentPage, filters)
       loadStats()

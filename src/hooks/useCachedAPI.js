@@ -18,6 +18,17 @@ export const clearCache = (key) => {
   }
 }
 
+// Função para limpar todo o cache
+export const clearAllCache = () => {
+  cache.clear()
+  console.log('🧹 Cache frontend completamente limpo')
+}
+
+// Disponibilizar clearAllCache globalmente
+if (typeof window !== 'undefined') {
+  window.clearAllCache = clearAllCache
+}
+
 // Função para verificar se tem dados em cache
 export const hasCache = (key) => {
   return cache.has(key)
