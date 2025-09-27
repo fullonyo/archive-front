@@ -4,8 +4,6 @@ import {
   UserGroupIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
-  DeviceTabletIcon,
-  ComputerDesktopIcon,
   GlobeAltIcon,
   ClockIcon,
   ChevronDownIcon,
@@ -20,11 +18,11 @@ import {
   MapIcon,
   ShieldCheckIcon,
   PhotoIcon,
-  TagIcon,
-  Cog6ToothIcon
+  TagIcon
 } from '@heroicons/react/24/outline'
 import VRChatLoading from '../ui/VRChatLoading'
 import FriendDetailsModal from './FriendDetailsModal'
+import { getTimeAgo, isRecentlyOnline, formatFullDate } from '../../utils/timeUtils'
 
 const FriendsList = ({ 
   friends = [], 
@@ -37,17 +35,10 @@ const FriendsList = ({
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('status') // status, name, last-seen
-  const [viewMode, setViewMode] = useState('grid') // grid, list, compact
   const [selectedFriend, setSelectedFriend] = useState(null)
   const [showFriendModal, setShowFriendModal] = useState(false)
   const [worldCache, setWorldCache] = useState(new Map()) // Cache para nomes de mundos
   const [loadingWorlds, setLoadingWorlds] = useState(new Set()) // Set de mundos sendo carregados
-
-  // Estados para configurações de visualização
-  const [viewSettings, setViewSettings] = useState({
-    enableAnimations: true,
-    cardDensity: 'comfortable' // comfortable, compact, dense
-  })
 
   // Debug dos dados de amigos
   useEffect(() => {
@@ -428,6 +419,14 @@ const FriendsList = ({
                    friend.status === 'ask me' ? 'Ask Me' :
                    friend.status === 'away' ? 'Ausente' : 'Disponível'}
                 </span>
+                
+                {/* Mostrar tempo offline para amigos offline */}
+                {(friend.status === 'offline' || !friend.status) && friend.last_login && (
+                  <span className="text-xs text-gray-500 flex items-center space-x-1">
+                    <ClockIcon className="w-3 h-3" />
+                    <span>{getTimeAgo(friend.last_login)}</span>
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -609,11 +608,13 @@ const FriendsList = ({
       <div className="flex items-center space-x-3">
         <div className="relative">
           <img
-            src={friend.userIcon || friend.profilePicOverride}
+            src={friend.currentAvatarImageUrl || friend.userIcon || friend.profilePicOverride || 'https://d348imysud55la.cloudfront.net/icons/default_user_icon.png'}
             alt={friend.displayName}
             className="w-12 h-12 rounded-full object-cover bg-gray-600"
             onError={(e) => {
-              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjMzc0MTUxIiByeD0iMjQiLz48cGF0aCBkPSJNMjQgMTJDMTguNDggMTIgMTQgMTYuNDggMTQgMjJTMTguNDggMzIgMjQgMzJTMzQgMjcuNTIgMzQgMjJTMjkuNTIgMTIgMjQgMTJaTTI0IDI4QzIwLjY5IDI4IDE4IDI1LjMxIDE4IDIyUzIwLjY5IDE2IDI0IDE2UzMwIDE4LjY5IDMwIDIyUzI3LjMxIDI4IDI0IDI4WiIgZmlsbD0iIzZCNzI4MCIvPjwvc3ZnPg=='
+              if (e.target.src !== 'https://d348imysud55la.cloudfront.net/icons/default_user_icon.png') {
+                e.target.src = 'https://d348imysud55la.cloudfront.net/icons/default_user_icon.png'
+              }
             }}
           />
           <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800 ${
@@ -641,6 +642,14 @@ const FriendsList = ({
                friend.status === 'ask me' ? 'Ask Me' :
                friend.status.charAt(0).toUpperCase() + friend.status.slice(1)}
             </span>
+            
+            {/* Tempo offline para amigos offline */}
+            {(friend.status === 'offline' || !friend.status) && friend.last_login && (
+              <span className="text-xs text-gray-500 flex items-center space-x-1">
+                <ClockIcon className="w-3 h-3" />
+                <span>{getTimeAgo(friend.last_login)}</span>
+              </span>
+            )}
             
             {/* Indicador de plataforma */}
             {friend.tags && (
@@ -713,41 +722,6 @@ const FriendsList = ({
                 <span>{stats.offline} offline</span>
               </span>
             </div>
-          </div>
-          
-          {/* Configurações de Visualização */}
-          <div className="flex items-center space-x-2 bg-gray-700 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'grid' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-              title="Visualização em Grade"
-            >
-              <DeviceTabletIcon className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'list' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-              title="Visualização em Lista"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode('compact')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'compact' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-              title="Visualização Compacta"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h4m0 0V4m0 2v2m0-2h2m8-2h4m0 0V4m0 2v2m0-2h2M4 18h4m0 0v-2m0 2v2m0-2h2m8 2h4m0 0v-2m0 2v2m0-2h2" />
-              </svg>
-            </button>
           </div>
         </div>
         
@@ -825,36 +799,6 @@ const FriendsList = ({
               <span>{activityLogs.length} atividades registradas</span>
             </div>
           </div>
-          
-          {/* Configurações de Performance */}
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-400">Animações:</label>
-              <button
-                onClick={() => setViewSettings(prev => ({ ...prev, enableAnimations: !prev.enableAnimations }))}
-                className={`w-10 h-5 rounded-full transition-colors ${
-                  viewSettings.enableAnimations ? 'bg-orange-600' : 'bg-gray-600'
-                } relative`}
-              >
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
-                  viewSettings.enableAnimations ? 'translate-x-5' : 'translate-x-0.5'
-                }`}></div>
-              </button>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-400">Densidade:</label>
-              <select
-                value={viewSettings.cardDensity}
-                onChange={(e) => setViewSettings(prev => ({ ...prev, cardDensity: e.target.value }))}
-                className="bg-gray-700 text-white px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                <option value="comfortable">Confortável</option>
-                <option value="compact">Compacto</option>
-                <option value="dense">Denso</option>
-              </select>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -891,25 +835,10 @@ const FriendsList = ({
             )}
           </div>
         ) : (
-          <div className={`
-            ${viewMode === 'grid' && viewSettings.cardDensity === 'comfortable' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' :
-              viewMode === 'grid' && viewSettings.cardDensity === 'compact' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4' :
-              viewMode === 'grid' && viewSettings.cardDensity === 'dense' ? 'grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3' :
-              viewMode === 'list' ? 'space-y-3' :
-              'grid grid-cols-1 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2'}
-            transition-all duration-300
-          `}>
+          <div className="space-y-3">
             <AnimatePresence mode="popLayout">
               {filteredFriends.map((friend, index) => (
-                viewMode === 'list' ? (
-                  <FriendCard key={friend.id} friend={friend} />
-                ) : (
-                  <ModernFriendCard 
-                    key={friend.id} 
-                    friend={friend} 
-                    index={index}
-                  />
-                )
+                <FriendCard key={friend.id} friend={friend} />
               ))}
             </AnimatePresence>
           </div>

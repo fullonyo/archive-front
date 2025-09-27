@@ -13,7 +13,6 @@ import WorldExplorer from '../components/VRChat/WorldExplorer'
 // Componentes UI
 import VRChatLoading from '../components/ui/VRChatLoading'
 import WorldDetailsModal from '../components/VRChat/WorldDetailsModal'
-import FriendDetailsModal from '../components/VRChat/FriendDetailsModal'
 
 import { 
   UserGroupIcon,
@@ -77,8 +76,6 @@ const VRChatAPIPage = () => {
   const [worlds, setWorlds] = useState([])
   const [favoriteWorlds, setFavoriteWorlds] = useState([])
   const [worldSearchQuery, setWorldSearchQuery] = useState('')
-  const [selectedFriend, setSelectedFriend] = useState(null)
-  const [showFriendModal, setShowFriendModal] = useState(false)
   
   // Estados para a sidebar de amigos
   const [showAllFriends, setShowAllFriends] = useState(false)
@@ -476,12 +473,6 @@ const VRChatAPIPage = () => {
     }
   }, [activeSection, loadDashboardData, loadFriendsData])
 
-  const handleFriendSelect = useCallback((friend) => {
-    console.log('Amigo selecionado:', friend)
-    setSelectedFriend(friend)
-    setShowFriendModal(true)
-  }, [])
-
   const handleWorldSelect = useCallback((world) => {
     // Implementar lógica para entrar no mundo
     console.log('Mundo selecionado:', world)
@@ -535,7 +526,6 @@ const VRChatAPIPage = () => {
         return (
           <FriendsList
             friends={friends}
-            onFriendSelect={handleFriendSelect}
             onRefresh={handleRefresh}
             loading={loadingDashboard}
             getWorldDetails={getWorldDetails}
@@ -838,13 +828,6 @@ const VRChatAPIPage = () => {
           </aside>
         </div>
       </main>
-      
-      {/* Modal de detalhes do amigo */}
-      <FriendDetailsModal
-        friend={selectedFriend}
-        isOpen={showFriendModal}
-        onClose={() => setShowFriendModal(false)}
-      />
     </div>
   )
 }

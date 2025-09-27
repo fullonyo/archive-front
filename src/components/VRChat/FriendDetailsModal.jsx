@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { createPortal } from 'react-dom'
 import { 
   XMarkIcon,
   UserIcon,
@@ -15,6 +16,31 @@ import {
 } from '@heroicons/react/24/outline'
 
 const FriendDetailsModal = ({ friend, isOpen, onClose }) => {
+  // Desabilitar scroll da página quando modal estiver aberto
+  useEffect(() => {
+    if (isOpen) {
+      // Salvar o valor atual do overflow e desabilitar scroll
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      
+      // Função para fechar modal com Escape
+      const handleEscape = (event) => {
+        if (event.key === 'Escape') {
+          onClose()
+        }
+      }
+      
+      // Adicionar listener para tecla Escape
+      document.addEventListener('keydown', handleEscape)
+      
+      // Cleanup: restaurar o scroll e remover listener quando modal fechar
+      return () => {
+        document.body.style.overflow = originalOverflow
+        document.removeEventListener('keydown', handleEscape)
+      }
+    }
+  }, [isOpen, onClose])
+
   if (!friend || !isOpen) return null
 
   const getStatusInfo = (status) => {
@@ -266,14 +292,24 @@ const FriendDetailsModal = ({ friend, isOpen, onClose }) => {
     }
   }
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
         onClick={onClose}
+        style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          width: '100vw', 
+          height: '100vh', 
+          zIndex: 9999 
+        }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -540,7 +576,8 @@ const FriendDetailsModal = ({ friend, isOpen, onClose }) => {
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
 
