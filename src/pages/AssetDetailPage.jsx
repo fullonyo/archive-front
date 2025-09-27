@@ -30,6 +30,7 @@ import DefaultAvatar from '../components/ui/DefaultAvatar'
 import ImageCarousel from '../components/ui/ImageCarousel'
 import ImageWithLoading from '../components/ui/ImageWithLoading'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import AssetReviews from '../components/assets/AssetReviews'
 import { getGoogleDriveImageUrl, handleImageError } from '../utils/googleDriveUtils'
 import { getProxiedImageUrl, needsProxy } from '../utils/imageProxy'
 import { processTags } from '../utils/tagUtils'
@@ -111,17 +112,28 @@ const AssetDetailPage = () => {
 
   const handleLike = async () => {
     try {
-      await assetsAPI.toggleFavorite(id)
-      setIsLiked(!isLiked)
+      const response = await assetsAPI.toggleFavorite(id)
+      const newIsLiked = !isLiked
+      
+      setIsLiked(newIsLiked)
       setAsset(prev => ({
         ...prev,
         _count: {
           ...prev._count,
-          favorites: prev._count.favorites + (isLiked ? -1 : 1)
+          favorites: prev._count.favorites + (newIsLiked ? 1 : -1)
         }
       }))
+      
+      // Show success message
+      if (newIsLiked) {
+        toast.success('💖 Asset adicionado aos favoritos!')
+      } else {
+        toast.success('Asset removido dos favoritos')
+      }
     } catch (err) {
       console.error('Error toggling like:', err)
+      const errorMessage = err.response?.data?.message || 'Erro ao curtir asset'
+      toast.error(errorMessage)
     }
   }
 
@@ -674,6 +686,40 @@ const AssetDetailPage = () => {
               </motion.div>
             </div>
         </div>
+
+        {/* Reviews Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-8 bg-gray-800/30 backdrop-blur-xl rounded-2xl border border-gray-700/50 p-8"
+        >
+          <AssetReviews 
+            assetId={asset.id} 
+            assetOwnerId={asset.user?.id}
+            onReviewAdded={(rating) => {
+              // Update asset stats when new review is added
+              setAsset(prev => {
+                const currentReviews = prev._count?.reviews || 0;
+                const currentAverage = prev.averageRating || 0;
+                const newReviewCount = currentReviews + 1;
+                
+                // Calculate new average rating
+                const totalCurrentRating = currentAverage * currentReviews;
+                const newAverageRating = (totalCurrentRating + rating) / newReviewCount;
+                
+                return {
+                  ...prev,
+                  averageRating: Number(newAverageRating.toFixed(1)),
+                  _count: {
+                    ...prev._count,
+                    reviews: newReviewCount
+                  }
+                };
+              });
+            }}
+          />
+        </motion.div>
       </div>
     </div>
   )

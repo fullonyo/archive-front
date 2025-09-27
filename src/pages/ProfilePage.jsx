@@ -64,7 +64,7 @@ const ModernStatCard = ({ icon: Icon, label, value, color = "indigo", trend = nu
         <div className={`p-3 rounded-xl ${colorConfig.bg}`}>
           <Icon className={`w-6 h-6 ${colorConfig.text}`} />
         </div>
-        {trend && (
+        {trend !== null && trend !== undefined && (
           <span className={`text-xs font-medium px-2 py-1 rounded-full ${
             trend > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'
           }`}>
@@ -1065,28 +1065,24 @@ const ProfilePage = () => {
               label="Assets publicados"
               value={userData.stats?.totalUploads || 0}
               color="indigo"
-              trend={12}
             />
             <ModernStatCard
               icon={HeartIcon}
               label="Curtidas recebidas"
               value={userData.stats?.totalFavorites || 0}
               color="pink"
-              trend={8}
             />
             <ModernStatCard
               icon={ArrowDownTrayIcon}
               label="Downloads totais"
               value={userData.stats?.totalDownloads || 0}
               color="emerald"
-              trend={15}
             />
             <ModernStatCard
               icon={StarIcon}
               label="Avaliação média"
-              value="4.9"
+              value={userData.stats?.averageRating > 0 ? userData.stats.averageRating.toFixed(1) : '0.0'}
               color="yellow"
-              trend={3}
             />
           </motion.div>
 
