@@ -579,10 +579,12 @@ export const useVRChatAPI = () => {
   // Buscar detalhes de um mundo específico
   const getWorldDetails = useCallback(async (worldId) => {
     try {
+      console.log('🔍 useVRChatAPI.getWorldDetails chamado para:', worldId)
       const response = await api.get(`/vrchat/worlds/${worldId}`)
+      console.log('📡 Resposta da API para getWorldDetails:', response.data)
       return response.data
     } catch (err) {
-      console.error('Erro ao buscar detalhes do mundo:', err)
+      console.error('❌ Erro ao buscar detalhes do mundo no hook:', err)
       throw err
     }
   }, [])

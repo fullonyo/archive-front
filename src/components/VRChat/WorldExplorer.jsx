@@ -28,7 +28,8 @@ import {
   ComputerDesktopIcon,
   DevicePhoneMobileIcon,
   CubeIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import VRChatLoading from '../ui/VRChatLoading'
@@ -43,6 +44,17 @@ const WorldExplorer = ({
   searchQuery,
   onSearchChange
 }) => {
+  console.log('WorldExplorer Debug:', {
+    worldsReceived: worlds,
+    worldsLength: worlds?.length,
+    favoriteWorldsLength: favoriteWorlds?.length,
+    loading,
+    searchQuery,
+    typeof_worlds: typeof worlds,
+    is_array: Array.isArray(worlds),
+    first_world_sample: worlds?.[0]
+  });
+
   const [filters, setFilters] = useState({
     category: 'all',
     platform: 'all',
@@ -173,6 +185,17 @@ const WorldExplorer = ({
     const isExpanded = expandedWorlds.has(world.id)
     const isFavorite = favoriteWorlds.includes(world.id)
     
+    // Função para obter URL da imagem do mundo com fallback
+    const getWorldImageUrl = () => {
+      const urls = [
+        world.imageUrl,
+        world.thumbnailImageUrl,
+        world.previewImageUrl
+      ].filter(Boolean)
+      
+      return urls[0] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjMzc0MTUxIi8+PHBhdGggZD0iTTE2MCA3MEMxNDcuODUgNzAgMTM4IDc5Ljg1IDEzOCA5MlMxNDcuODUgMTE0IDE2MCAxMTRTMTgyIDEwNC4xNSAxODIgOTJTMTcyLjE1IDcwIDE2MCA3MFpNMTYwIDEwNEMxNTMuMzcgMTA0IDE0OCA5OC42MyAxNDggOTJTMTUzLjM3IDgwIDE2MCA4MFMxNzIgODUuMzcgMTcyIDkyUzE2Ni42MyAxMDQgMTYwIDEwNFoiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
+    }
+    
     return (
       <motion.div
         layout
@@ -182,10 +205,11 @@ const WorldExplorer = ({
           {/* Imagem do mundo */}
           <div className="aspect-video bg-gray-800 relative overflow-hidden">
             <img
-              src={world.imageUrl || world.thumbnailImageUrl}
+              src={getWorldImageUrl()}
               alt={world.name}
               className="w-full h-full object-cover"
               onError={(e) => {
+                console.warn('Falha ao carregar imagem do mundo:', world.name, e.target.src)
                 e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjMzc0MTUxIi8+PHBhdGggZD0iTTE2MCA3MEMxNDcuODUgNzAgMTM4IDc5Ljg1IDEzOCA5MlMxNDcuODUgMTE0IDE2MCAxMTRTMTgyIDEwNC4xNSAxODIgOTJTMTcyLjE1IDcwIDE2MCA3MFpNMTYwIDEwNEMxNTMuMzcgMTA0IDE0OCA5OC42MyAxNDggOTJTMTUzLjM3IDgwIDE2MCA4MFMxNzIgODUuMzcgMTcyIDkyUzE2Ni42MyAxMDQgMTYwIDEwNFoiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
               }}
             />
@@ -656,9 +680,12 @@ const WorldExplorer = ({
               
               <div className="space-y-4">
                 <img
-                  src={selectedWorld.imageUrl}
+                  src={selectedWorld.imageUrl || selectedWorld.thumbnailImageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjI4OCIgdmlld0JveD0iMCAwIDUxMiAyODgiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iMjg4IiBmaWxsPSIjMzc0MTUxIi8+PHBhdGggZD0iTTI1NiAxMjBDMjM2LjMgMTIwIDIyMCAxMzYuMyAyMjAgMTU2UzIzNi4zIDE5MiAyNTYgMTkyUzI5MiAxNzUuNyAyOTIgMTU2UzI3NS43IDEyMCAyNTYgMTIwWk0yNTYgMTcyQzI0Ny4yIDE3MiAyNDAgMTY0LjggMjQwIDE1NlMyNDcuMiAxNDAgMjU2IDE0MFMyNzIgMTQ3LjIgMjcyIDE1NlMyNjQuOCAxNzIgMjU2IDE3MloiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='}
                   alt={selectedWorld.name}
                   className="w-full aspect-video object-cover rounded-lg"
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjI4OCIgdmlld0JveD0iMCAwIDUxMiAyODgiIGZpbGw9Im5vbmUiPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iMjg4IiBmaWxsPSIjMzc0MTUxIi8+PHBhdGggZD0iTTI1NiAxMjBDMjM2LjMgMTIwIDIyMCAxMzYuMyAyMjAgMTU2UzIzNi4zIDE5MiAyNTYgMTkyUzI5MiAxNzUuNyAyOTIgMTU2UzI3NS43IDEyMCAyNTYgMTIwWk0yNTYgMTcyQzI0Ny4yIDE3MiAyNDAgMTY0LjggMjQwIDE1NlMyNDcuMiAxNDAgMjU2IDE0MFMyNzIgMTQ3LjIgMjcyIDE1NlMyNjQuOCAxNzIgMjU2IDE3MloiIGZpbGw9IiM2QjcyODAiLz48L3N2Zz4='
+                  }}
                 />
                 
                 <p className="text-gray-300">{selectedWorld.description}</p>

@@ -31,7 +31,8 @@ const FriendsList = ({
   onRefresh, 
   loading, 
   onFriendSelect,
-  activityLogs = []
+  activityLogs = [],
+  getWorldDetails
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -39,6 +40,8 @@ const FriendsList = ({
   const [viewMode, setViewMode] = useState('grid') // grid, list, compact
   const [selectedFriend, setSelectedFriend] = useState(null)
   const [showFriendModal, setShowFriendModal] = useState(false)
+  const [worldCache, setWorldCache] = useState(new Map()) // Cache para nomes de mundos
+  const [loadingWorlds, setLoadingWorlds] = useState(new Set()) // Set de mundos sendo carregados
 
   // Estados para configurações de visualização
   const [viewSettings, setViewSettings] = useState({
@@ -85,8 +88,44 @@ const FriendsList = ({
     setShowFriendModal(false)
   }
 
+  // Função para buscar e cachear detalhes do mundo
+  const fetchWorldDetails = async (worldId) => {
+    if (!worldId || !getWorldDetails || worldCache.has(worldId) || loadingWorlds.has(worldId)) {
+      return worldCache.get(worldId) || null
+    }
+
+    try {
+      setLoadingWorlds(prev => new Set([...prev, worldId]))
+      console.log('🌍 Buscando detalhes do mundo:', worldId)
+      
+      const worldDetails = await getWorldDetails(worldId)
+      console.log('🔍 Resposta da API para mundo:', { worldId, worldDetails, data: worldDetails?.data })
+      
+      if (worldDetails.success && worldDetails.data && worldDetails.data.world) {
+        const worldName = worldDetails.data.world.name || `Mundo ${worldId.substring(5, 13).toUpperCase()}`
+        setWorldCache(prev => new Map(prev.set(worldId, worldName)))
+        console.log('✅ Mundo encontrado e cacheado:', { worldId, worldName })
+        return worldName
+      } else {
+        console.warn('❌ Falha ao buscar mundo:', { worldId, success: worldDetails?.success, error: worldDetails?.error, structure: worldDetails?.data })
+      }
+    } catch (error) {
+      console.error('Erro ao buscar detalhes do mundo:', error)
+    } finally {
+      setLoadingWorlds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(worldId)
+        return newSet
+      })
+    }
+    
+    return null
+  }
+
   // Função para extrair nome do mundo da localização VRChat
-  const parseWorldLocation = (location) => {
+  const parseWorldLocation = async (location, shouldFetch = true) => {
+    console.log('parseWorldLocation debug:', { location, type: typeof location });
+    
     if (!location || location === 'offline') return 'Offline'
     if (location === 'private') return 'Mundo Privado'
     
@@ -114,29 +153,175 @@ const FriendsList = ({
           else if (instancePart.includes('~private')) instanceInfo = ' (Privado)'
         }
         
-        const knownName = knownWorlds[worldId]
-        if (knownName) return knownName + instanceInfo
+        // Verificar cache primeiro
+        if (worldCache.has(worldId)) {
+          return worldCache.get(worldId) + instanceInfo
+        }
         
+        // Verificar mundos conhecidos
+        const knownName = knownWorlds[worldId]
+        if (knownName) {
+          setWorldCache(prev => new Map(prev.set(worldId, knownName)))
+          return knownName + instanceInfo
+        }
+        
+        // Se deve buscar na API e não está carregando, buscar
+        if (shouldFetch && getWorldDetails) {
+          fetchWorldDetails(worldId).then(worldName => {
+            if (worldName) {
+              // Forçar re-render para atualizar o nome
+              setWorldCache(prev => new Map(prev))
+            }
+          })
+        }
+        
+        // Retornar nome temporário enquanto carrega ou se não pode buscar
         if (worldId.includes('wrld_')) {
           const shortId = worldId.substring(5, 13)
-          return `Mundo ${shortId.toUpperCase()}${instanceInfo}`
+          const tempName = `Mundo ${shortId.toUpperCase()}`
+          if (loadingWorlds.has(worldId)) {
+            return `${tempName} (Carregando...)${instanceInfo}`
+          }
+          return tempName + instanceInfo
         }
       }
       
       return location.length > 35 ? location.substring(0, 35) + '...' : location || 'Mundo Desconhecido'
     } catch (error) {
+      console.error('Erro em parseWorldLocation:', error)
       return location.length > 35 ? location.substring(0, 35) + '...' : location
     }
   }
 
+  // Componente para nome do mundo dinâmico
+  const WorldName = ({ location }) => {
+    const [worldName, setWorldName] = useState('')
+    const [isLoading, setIsLoading] = useState(false)
+    
+    useEffect(() => {
+      const getWorldName = async () => {
+        console.log('🏷️ WorldName component processando:', location)
+        
+        if (!location || location === 'offline') {
+          setWorldName('Offline')
+          return
+        }
+        if (location === 'private') {
+          setWorldName('Mundo Privado')
+          return
+        }
+        
+        // Extrair worldId da location
+        if (location.includes('wrld_')) {
+          const parts = location.split(':')
+          const worldId = parts[0]
+          let instanceInfo = ''
+          
+          if (parts.length > 1) {
+            const instancePart = parts[1]
+            if (instancePart.includes('~public')) instanceInfo = ' (Público)'
+            else if (instancePart.includes('~friends')) instanceInfo = ' (Amigos)'
+            else if (instancePart.includes('~invite')) instanceInfo = ' (Apenas Convite)'
+            else if (instancePart.includes('~group')) instanceInfo = ' (Grupo)'
+            else if (instancePart.includes('~private')) instanceInfo = ' (Privado)'
+          }
+          
+          // Verificar cache primeiro
+          if (worldCache.has(worldId)) {
+            console.log('📋 Cache hit para mundo:', worldId, worldCache.get(worldId))
+            setWorldName(worldCache.get(worldId) + instanceInfo)
+            return
+          }
+          
+          // Verificar mundos conhecidos
+          const knownWorlds = {
+            'wrld_4432ea9b-729c-46e3-8eaf-846aa0a37fdd': 'The Great Pug',
+            'wrld_6caf5200-70ac-4b8a-aa8d-89c0d5317530': 'Club Orion',
+            'wrld_858dfdfc-1b48-4e1e-8a43-f0edc611e5fe': 'Murder 4',
+            'wrld_ba913a96-fac4-4048-a062-9aa5db092812': 'The Black Cat'
+          }
+          
+          const knownName = knownWorlds[worldId]
+          if (knownName) {
+            console.log('📚 Mundo conhecido encontrado:', knownName)
+            setWorldCache(prev => new Map(prev.set(worldId, knownName)))
+            setWorldName(knownName + instanceInfo)
+            return
+          }
+          
+          // Se tem getWorldDetails, buscar na API
+          if (getWorldDetails && !loadingWorlds.has(worldId)) {
+            setIsLoading(true)
+            const shortId = worldId.substring(5, 13)
+            setWorldName(`Mundo ${shortId.toUpperCase()}${instanceInfo} (Carregando...)`)
+            
+            try {
+              const apiWorldName = await fetchWorldDetails(worldId)
+              if (apiWorldName) {
+                console.log('🌐 Nome obtido da API:', apiWorldName)
+                setWorldName(apiWorldName + instanceInfo)
+              } else {
+                setWorldName(`Mundo ${shortId.toUpperCase()}${instanceInfo}`)
+              }
+            } catch (error) {
+              console.error('❌ Erro ao buscar mundo:', error)
+              setWorldName(`Mundo ${shortId.toUpperCase()}${instanceInfo}`)
+            } finally {
+              setIsLoading(false)
+            }
+          } else {
+            // Fallback para ID abreviado
+            const shortId = worldId.substring(5, 13)
+            setWorldName(`Mundo ${shortId.toUpperCase()}${instanceInfo}`)
+          }
+        } else {
+          setWorldName(location.length > 35 ? location.substring(0, 35) + '...' : location)
+        }
+      }
+      
+      getWorldName()
+    }, [location]) // Removido worldCache da dependência para evitar loops infinitos
+    
+    // Reagir a mudanças no cache separadamente
+    useEffect(() => {
+      if (location && location.includes('wrld_')) {
+        const worldId = location.split(':')[0]
+        if (worldCache.has(worldId)) {
+          const parts = location.split(':')
+          let instanceInfo = ''
+          
+          if (parts.length > 1) {
+            const instancePart = parts[1]
+            if (instancePart.includes('~public')) instanceInfo = ' (Público)'
+            else if (instancePart.includes('~friends')) instanceInfo = ' (Amigos)'
+            else if (instancePart.includes('~invite')) instanceInfo = ' (Apenas Convite)'
+            else if (instancePart.includes('~group')) instanceInfo = ' (Grupo)'
+            else if (instancePart.includes('~private')) instanceInfo = ' (Privado)'
+          }
+          
+          const cachedName = worldCache.get(worldId) + instanceInfo
+          if (worldName !== cachedName && !worldName.includes('(Carregando...)')) {
+            console.log('🔄 Atualizando nome do cache:', cachedName)
+            setWorldName(cachedName)
+          }
+        }
+      }
+    }, [worldCache.size, location]) // Reagir ao tamanho do cache mudando
+    
+    if (isLoading && !worldName) {
+      return <span className="text-gray-400">Carregando...</span>
+    }
+    
+    return <span>{worldName || 'Mundo Desconhecido'}</span>
+  }
+
   // Componente de Card de Amigo Moderno
-  const ModernFriendCard = ({ friend, index }) => {
+  const ModernFriendCard = React.forwardRef(({ friend, index }, ref) => {
     const [isHovered, setIsHovered] = useState(false)
     const [imageLoaded, setImageLoaded] = useState(false)
     
     const friendActivities = activityLogs.filter(log => log.friendId === friend.id)
     const lastActivity = friendActivities[0]
-    const worldName = parseWorldLocation(friend.location)
     
     const getStatusColor = (status) => {
       const statusLower = (status || 'offline').toLowerCase()
@@ -164,6 +349,7 @@ const FriendsList = ({
     
     return (
       <motion.div
+        ref={ref}
         initial={viewSettings.enableAnimations ? { opacity: 0, y: 20, scale: 0.9 } : false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, delay: cardDelay / 1000 }}
@@ -243,7 +429,7 @@ const FriendsList = ({
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-300">
-                  {friend.location.includes('private') ? 'Mundo Privado' : worldName}
+                  <WorldName location={friend.location} />
                 </span>
               </div>
               {!friend.location.includes('private') && viewSettings.cardDensity === 'comfortable' && (
@@ -312,7 +498,8 @@ const FriendsList = ({
         )}
       </motion.div>
     )
-  }
+  })
+  
   const filteredFriends = useMemo(() => {
     if (!friends || !Array.isArray(friends)) return []
     
@@ -479,7 +666,7 @@ const FriendsList = ({
               <UserGroupIcon className="w-8 h-8 text-orange-500" />
               <span>Amigos ({filteredFriends.length}/{friends.length})</span>
             </h2>
-            <p className="text-gray-400 flex items-center space-x-4">
+            <div className="text-gray-400 flex items-center space-x-4">
               <span className="flex items-center space-x-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span>{stats.online} online</span>
@@ -488,7 +675,7 @@ const FriendsList = ({
                 <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
                 <span>{stats.offline} offline</span>
               </span>
-            </p>
+            </div>
           </div>
           
           <div className="flex items-center space-x-3">

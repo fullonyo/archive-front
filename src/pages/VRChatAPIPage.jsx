@@ -50,7 +50,11 @@ const VRChatAPIPage = () => {
     getFriends,
     getRecentWorlds,
     getStats,
-    getDashboardData
+    getDashboardData,
+    searchWorlds,
+    getFeaturedWorlds,
+    getPopularWorlds,
+    getWorldDetails
   } = useVRChatAPI()
 
   // Estados principais da aplicação
@@ -233,6 +237,58 @@ const VRChatAPIPage = () => {
     }
   }, [isConnected, dashboardData, loadDashboardData])
 
+  // Carregar dados de mundos
+  const loadWorldsData = useCallback(async () => {
+    if (!isConnected) return
+    
+    console.log('🌍 Carregando dados de mundos...')
+    setLoadingDashboard(true)
+    
+    try {
+      // Buscar mundos em destaque e populares em paralelo
+      const [featuredResult, popularResult] = await Promise.all([
+        getFeaturedWorlds().catch(err => {
+          console.warn('Falha ao carregar mundos em destaque:', err)
+          return { success: false, data: { worlds: [] } }
+        }),
+        getPopularWorlds().catch(err => {
+          console.warn('Falha ao carregar mundos populares:', err)
+          return { success: false, data: { worlds: [] } }
+        })
+      ])
+
+      const allWorlds = []
+      
+      if (featuredResult.success && featuredResult.data?.worlds) {
+        allWorlds.push(...featuredResult.data.worlds)
+        console.log('✅ Mundos em destaque carregados:', featuredResult.data.worlds.length)
+      }
+      
+      if (popularResult.success && popularResult.data?.worlds) {
+        // Evitar duplicatas
+        const featuredIds = new Set(allWorlds.map(w => w.id))
+        const uniquePopular = popularResult.data.worlds.filter(w => !featuredIds.has(w.id))
+        allWorlds.push(...uniquePopular)
+        console.log('✅ Mundos populares carregados:', uniquePopular.length)
+      }
+
+      setWorlds(allWorlds)
+      console.log('✅ Total de mundos carregados:', allWorlds.length)
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar mundos:', error)
+    } finally {
+      setLoadingDashboard(false)
+    }
+  }, [isConnected, getFeaturedWorlds, getPopularWorlds])
+
+  // Carregar worlds quando a seção for selecionada
+  useEffect(() => {
+    if (activeSection === 'worlds' && isConnected && worlds.length === 0) {
+      loadWorldsData()
+    }
+  }, [activeSection, isConnected, worlds.length, loadWorldsData])
+
   // Handlers para componentes
   const handleLoginSubmit = useCallback(async (credentials) => {
     console.log('🔐 Iniciando conexão com VRChat:', credentials)
@@ -244,9 +300,13 @@ const VRChatAPIPage = () => {
     return await complete2FAConnection(twoFactorCode)
   }, [complete2FAConnection])
 
-  const handleRefresh = useCallback(() => {
-    loadDashboardData()
-  }, [loadDashboardData])
+  const handleRefresh = useCallback(async () => {
+    if (activeSection === 'worlds') {
+      await loadWorldsData()
+    } else {
+      await loadDashboardData()
+    }
+  }, [activeSection, loadDashboardData, loadWorldsData])
 
   const handleFriendSelect = useCallback((friend) => {
     console.log('Amigo selecionado:', friend)
@@ -310,6 +370,7 @@ const VRChatAPIPage = () => {
             onFriendSelect={handleFriendSelect}
             onRefresh={handleRefresh}
             loading={loadingDashboard}
+            getWorldDetails={getWorldDetails}
           />
         )
       
