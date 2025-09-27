@@ -486,23 +486,6 @@ const WorldExplorer = ({
             <span className="text-sm text-gray-400">
               {filteredWorlds.length} de {worlds.length} mundos
             </span>
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center"
-            >
-              {loading ? (
-                <>
-                  <VRChatLoading size="sm" type="refresh" showText={false} className="w-4 h-4 mr-2" />
-                  Atualizando...
-                </>
-              ) : (
-                <>
-                  <ArrowPathIcon className="w-4 h-4 mr-2" />
-                  Atualizar
-                </>
-              )}
-            </button>
           </div>
         </div>
 
@@ -629,7 +612,7 @@ const WorldExplorer = ({
 
       {/* Lista de Mundos */}
       <div className="space-y-4">
-        {loading && worlds.length === 0 ? (
+        {worlds.length === 0 ? (
           <div className="text-center py-12">
             <VRChatLoading size="lg" type="loading" />
             <p className="text-gray-400 mt-4">Carregando mundos...</p>

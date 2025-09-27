@@ -715,59 +715,39 @@ const FriendsList = ({
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          {/* Configurações de Visualização */}
+          <div className="flex items-center space-x-2 bg-gray-700 rounded-lg p-1">
             <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-2"
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'grid' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              title="Visualização em Grade"
             >
-              {loading ? (
-                <>
-                  <VRChatLoading size="sm" type="refresh" showText={false} className="w-4 h-4" />
-                  <span>Atualizando...</span>
-                </>
-              ) : (
-                <>
-                  <ArrowPathIcon className="w-4 h-4" />
-                  <span>Atualizar</span>
-                </>
-              )}
+              <DeviceTabletIcon className="w-4 h-4" />
             </button>
-            
-            {/* Configurações de Visualização */}
-            <div className="flex items-center space-x-2 bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === 'grid' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
-                }`}
-                title="Visualização em Grade"
-              >
-                <DeviceTabletIcon className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === 'list' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
-                }`}
-                title="Visualização em Lista"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('compact')}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === 'compact' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
-                }`}
-                title="Visualização Compacta"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h4m0 0V4m0 2v2m0-2h2m8-2h4m0 0V4m0 2v2m0-2h2M4 18h4m0 0v-2m0 2v2m0-2h2m8 2h4m0 0v-2m0 2v2m0-2h2" />
-                </svg>
-              </button>
-            </div>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              title="Visualização em Lista"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('compact')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'compact' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              title="Visualização Compacta"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h4m0 0V4m0 2v2m0-2h2m8-2h4m0 0V4m0 2v2m0-2h2M4 18h4m0 0v-2m0 2v2m0-2h2m8 2h4m0 0v-2m0 2v2m0-2h2" />
+              </svg>
+            </button>
           </div>
         </div>
         

@@ -843,23 +843,6 @@ const ActivityMonitor = ({
               <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
               Exportar
             </button>
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center"
-            >
-              {loading ? (
-                <>
-                  <VRChatLoading size="sm" type="refresh" showText={false} className="w-4 h-4 mr-2" />
-                  Atualizando...
-                </>
-              ) : (
-                <>
-                  <ArrowPathIcon className="w-4 h-4 mr-2" />
-                  Atualizar
-                </>
-              )}
-            </button>
           </div>
         </div>
 

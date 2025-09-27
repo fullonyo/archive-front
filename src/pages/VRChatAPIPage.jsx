@@ -63,6 +63,14 @@ const VRChatAPIPage = () => {
   const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(null)
   
+  // Estados de loading específicos por seção
+  const [loadingStates, setLoadingStates] = useState({
+    dashboard: false,
+    friends: false, 
+    worlds: false,
+    activity: false
+  })
+  
   // Estados para dados específicos
   const [friends, setFriends] = useState([])
   const [activityLogs, setActivityLogs] = useState([])
@@ -78,33 +86,66 @@ const VRChatAPIPage = () => {
   // Estados para tracking de atividades
   const [friendsHistory, setFriendsHistory] = useState(new Map())
   const [friendsRefreshInterval, setFriendsRefreshInterval] = useState(null)
+  
+  // Estados para cache inteligente
+  const [dataCache, setDataCache] = useState({
+    dashboard: { data: null, timestamp: null, loading: false },
+    friends: { data: [], timestamp: null, loading: false },
+    worlds: { data: [], timestamp: null, loading: false },
+    activity: { data: [], timestamp: null, loading: false }
+  })
+  const [cacheConfig] = useState({
+    dashboard: 30000,    // 30 segundos
+    friends: 20000,      // 20 segundos  
+    worlds: 60000,       // 1 minuto
+    activity: 15000      // 15 segundos
+  })
 
-  // Auto-refresh amigos a cada 30 segundos quando conectado
-  useEffect(() => {
-    if (isConnected && !friendsRefreshInterval) {
-      const interval = setInterval(async () => {
-        try {
-          const friendsResult = await getFriends()
-          if (friendsResult.success && friendsResult.data?.friends) {
-            detectFriendChanges(friendsResult.data.friends)
-            setFriends(friendsResult.data.friends)
-            setLastRefresh(new Date())
-          }
-        } catch (error) {
-          console.error('Erro no auto-refresh:', error)
-        }
-      }, 30000)
-      
-      setFriendsRefreshInterval(interval)
-    }
+  // Função para verificar se cache é válido
+  const isCacheValid = useCallback((cacheType) => {
+    const cache = dataCache[cacheType]
+    if (!cache.data || !cache.timestamp) return false
+    
+    const now = Date.now()
+    const maxAge = cacheConfig[cacheType]
+    return (now - cache.timestamp) < maxAge
+  }, [dataCache, cacheConfig])
 
-    return () => {
-      if (friendsRefreshInterval) {
-        clearInterval(friendsRefreshInterval)
-        setFriendsRefreshInterval(null)
+  // Função para atualizar cache
+  const updateCache = useCallback((cacheType, data) => {
+    setDataCache(prev => ({
+      ...prev,
+      [cacheType]: {
+        data,
+        timestamp: Date.now(),
+        loading: false
       }
+    }))
+  }, [])
+
+  // Função para marcar cache como loading
+  const setCacheLoading = useCallback((cacheType, loading) => {
+    setDataCache(prev => ({
+      ...prev,
+      [cacheType]: {
+        ...prev[cacheType],
+        loading
+      }
+    }))
+  }, [])
+
+  // Função para gerenciar loading states específicos
+  const setLoadingState = useCallback((section, loading) => {
+    setLoadingStates(prev => ({
+      ...prev,
+      [section]: loading
+    }))
+    
+    // Manter compatibilidade com loadingDashboard para componentes filhos
+    if (section === 'dashboard' || section === 'friends') {
+      setLoadingDashboard(loading)
     }
-  }, [isConnected, getFriends, friendsRefreshInterval])
+  }, [])
 
   // Função para detectar mudanças nos amigos
   const detectFriendChanges = useCallback((newFriends) => {
@@ -186,11 +227,28 @@ const VRChatAPIPage = () => {
     setFriendsHistory(new Map(friendsHistory))
   }, [friendsHistory])
 
-  // Carregar dados do dashboard
-  const loadDashboardData = useCallback(async () => {
+  // Carregar dados do dashboard com cache
+  const loadDashboardData = useCallback(async (forceRefresh = false) => {
     if (!isConnected) return
     
+    // Verificar cache primeiro se não for refresh forçado
+    if (!forceRefresh && isCacheValid('dashboard')) {
+      console.log('📦 Usando dados do dashboard em cache')
+      const cachedData = dataCache.dashboard.data
+      setDashboardData(cachedData)
+      setFriends(cachedData.friends || [])
+      return
+    }
+    
+    // Se já está carregando, não fazer nova requisição
+    if (dataCache.dashboard.loading) {
+      console.log('⏳ Dashboard já está carregando...')
+      return
+    }
+    
+    setCacheLoading('dashboard', true)
     setLoadingDashboard(true)
+    
     try {
       console.log('🔄 Carregando dados do dashboard...')
       const result = await getDashboardData()
@@ -204,6 +262,12 @@ const VRChatAPIPage = () => {
         }
 
         console.log('✅ Dados do dashboard carregados:', data)
+        
+        // Atualizar cache
+        updateCache('dashboard', data)
+        updateCache('friends', data.friends)
+        
+        // Atualizar estados
         setDashboardData(data)
         setFriends(data.friends)
         setLastRefresh(new Date())
@@ -229,25 +293,114 @@ const VRChatAPIPage = () => {
     } catch (error) {
       console.error('❌ Erro ao carregar dados do dashboard:', error)
     } finally {
-      setLoadingDashboard(false)
+      setLoadingState('dashboard', false)
+      setCacheLoading('dashboard', false)
     }
-  }, [isConnected, getDashboardData, connection, friendsHistory])
+  }, [isConnected, getDashboardData, connection, friendsHistory, isCacheValid, dataCache, setCacheLoading, updateCache])
 
-  // Carregar dados quando conectado
-  useEffect(() => {
-    if (isConnected && !dashboardData) {
-      loadDashboardData()
-    }
-  }, [isConnected, dashboardData, loadDashboardData])
-
-  // Carregar dados de mundos
-  const loadWorldsData = useCallback(async () => {
+  // Função específica para carregar amigos com cache
+  const loadFriendsData = useCallback(async (forceRefresh = false) => {
     if (!isConnected) return
     
-    console.log('🌍 Carregando dados de mundos...')
+    // Verificar cache primeiro se não for refresh forçado
+    if (!forceRefresh && isCacheValid('friends')) {
+      console.log('📦 Usando dados de amigos em cache')
+      const cachedData = dataCache.friends.data
+      setFriends(cachedData)
+      return
+    }
+    
+    // Se já está carregando, não fazer nova requisição
+    if (dataCache.friends.loading) {
+      console.log('⏳ Amigos já estão carregando...')
+      return
+    }
+    
+    setCacheLoading('friends', true)
+    setLoadingState('friends', true)
+    
+    try {
+      console.log('👥 Carregando dados de amigos...')
+      const result = await getFriends()
+      
+      if (result.success && result.data?.friends) {
+        const friends = result.data.friends
+        console.log('✅ Amigos carregados:', friends.length)
+        
+        // Atualizar cache
+        updateCache('friends', friends)
+        
+        // Detectar mudanças e atualizar estados
+        detectFriendChanges(friends)
+        setFriends(friends)
+        setLastRefresh(new Date())
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar amigos:', error)
+    } finally {
+      setCacheLoading('friends', false)
+      setLoadingState('friends', false)
+    }
+  }, [isConnected, getFriends, detectFriendChanges, isCacheValid, dataCache, setCacheLoading, updateCache])
+
+  // Auto-refresh inteligente com cache
+  useEffect(() => {
+    if (isConnected && !friendsRefreshInterval) {
+      const interval = setInterval(async () => {
+        try {
+          // Usar cache para refresh automático, mas forçar refresh a cada 5 minutos
+          const lastFriendsUpdate = dataCache.friends.timestamp
+          const shouldForceRefresh = !lastFriendsUpdate || (Date.now() - lastFriendsUpdate) > 300000 // 5 minutos
+          
+          await loadFriendsData(shouldForceRefresh)
+        } catch (error) {
+          console.error('Erro no auto-refresh:', error)
+        }
+      }, 30000) // A cada 30 segundos
+      
+      setFriendsRefreshInterval(interval)
+    }
+
+    return () => {
+      if (friendsRefreshInterval) {
+        clearInterval(friendsRefreshInterval)
+        setFriendsRefreshInterval(null)
+      }
+    }
+  }, [isConnected, loadFriendsData, friendsRefreshInterval, dataCache.friends.timestamp])
+
+  // Carregar dados quando conectado
+  // Carregar dados quando conectado (apenas se não estiver em cache)
+  useEffect(() => {
+    if (isConnected && !isCacheValid('dashboard')) {
+      loadDashboardData()
+    }
+  }, [isConnected, loadDashboardData, isCacheValid])
+
+  // Carregar dados de mundos
+  // Carregar dados de mundos com cache
+  const loadWorldsData = useCallback(async (forceRefresh = false) => {
+    if (!isConnected) return
+    
+    // Verificar cache primeiro se não for refresh forçado
+    if (!forceRefresh && isCacheValid('worlds')) {
+      console.log('📦 Usando dados de mundos em cache')
+      const cachedData = dataCache.worlds.data
+      setWorlds(cachedData)
+      return
+    }
+    
+    // Se já está carregando, não fazer nova requisição
+    if (dataCache.worlds.loading) {
+      console.log('⏳ Mundos já estão carregando...')
+      return
+    }
+    
+    setCacheLoading('worlds', true)
     setLoadingDashboard(true)
     
     try {
+      console.log('🌍 Carregando dados de mundos...')
       // Buscar mundos em destaque e populares em paralelo
       const [featuredResult, popularResult] = await Promise.all([
         getFeaturedWorlds().catch(err => {
@@ -275,22 +428,26 @@ const VRChatAPIPage = () => {
         console.log('✅ Mundos populares carregados:', uniquePopular.length)
       }
 
-      setWorlds(allWorlds)
       console.log('✅ Total de mundos carregados:', allWorlds.length)
+      
+      // Atualizar cache
+      updateCache('worlds', allWorlds)
+      setWorlds(allWorlds)
       
     } catch (error) {
       console.error('❌ Erro ao carregar mundos:', error)
     } finally {
-      setLoadingDashboard(false)
+      setLoadingState('worlds', false)
+      setCacheLoading('worlds', false)
     }
-  }, [isConnected, getFeaturedWorlds, getPopularWorlds])
+  }, [isConnected, getFeaturedWorlds, getPopularWorlds, isCacheValid, dataCache, setCacheLoading, updateCache])
 
-  // Carregar worlds quando a seção for selecionada
+  // Carregar worlds quando a seção for selecionada (apenas se não estiver em cache)
   useEffect(() => {
-    if (activeSection === 'worlds' && isConnected && worlds.length === 0) {
+    if (activeSection === 'worlds' && isConnected && !isCacheValid('worlds')) {
       loadWorldsData()
     }
-  }, [activeSection, isConnected, worlds.length, loadWorldsData])
+  }, [activeSection, isConnected, loadWorldsData, isCacheValid])
 
   // Handlers para componentes
   const handleLoginSubmit = useCallback(async (credentials) => {
@@ -303,13 +460,21 @@ const VRChatAPIPage = () => {
     return await complete2FAConnection(twoFactorCode)
   }, [complete2FAConnection])
 
+  // Função de refresh com cache forçado
   const handleRefresh = useCallback(async () => {
-    if (activeSection === 'worlds') {
-      await loadWorldsData()
-    } else {
-      await loadDashboardData()
+    console.log('🔄 Refresh manual solicitado - forçando atualização do cache')
+    
+    switch (activeSection) {
+      case 'worlds':
+        await loadWorldsData(true) // Força refresh
+        break
+      case 'friends':
+        await loadFriendsData(true) // Força refresh
+        break
+      default:
+        await loadDashboardData(true) // Força refresh
     }
-  }, [activeSection, loadDashboardData, loadWorldsData])
+  }, [activeSection, loadDashboardData, loadFriendsData])
 
   const handleFriendSelect = useCallback((friend) => {
     console.log('Amigo selecionado:', friend)
@@ -440,61 +605,8 @@ const VRChatAPIPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header minimalista full-width */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-800/50">
-        <div className="w-full px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo minimalista */}
-            <div className="flex items-center space-x-4">
-              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded"></div>
-              <div className="hidden sm:flex items-center space-x-2">
-                <span className="text-lg font-medium text-gray-900 dark:text-white">VRChat</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">API</span>
-              </div>
-            </div>
-            
-            {/* User info compacta */}
-            <div className="flex items-center space-x-4">
-              <div className="hidden lg:flex items-center space-x-3">
-                <img
-                  src={connection?.currentUser?.userIcon || connection?.currentUser?.profilePicOverride}
-                  alt={connection?.currentUser?.displayName}
-                  className="w-7 h-7 rounded-full object-cover"
-                  onError={(e) => {
-                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgiIGhlaWdodD0iMjgiIHZpZXdCb3g9IjAgMCAyOCAyOCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjMzc0MTUxIiByeD0iMTQiLz48cGF0aCBkPSJNMTQgN0MxMS4yNCA3IDkgOS4yNCA5IDEyUzExLjI0IDE3IDE0IDE3UzE5IDI0Ljc2IDE5IDEyUzE2Ljc2IDcgMTQgN1pNMTQgMTQuOEMxMi43IDE0LjggMTEuNiAxMy43IDExLjYgMTJTMTIuNyA5LjIgMTQgOS4yUzE2LjQgMTAuMyAxNi4zIDEyUzE1LjMgMTQuOCAxNCA0LjhaIiBmaWxsPSIjNkI3MjgwIi8+PC9zdmc+'
-                  }}
-                />
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {connection?.currentUser?.displayName}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loadingDashboard}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all"
-                  title="Atualizar"
-                >
-                  <ArrowPathIcon className={`w-4 h-4 ${loadingDashboard ? 'animate-spin' : ''}`} />
-                </button>
-                
-                <button
-                  onClick={disconnect}
-                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
-                >
-                  Sair
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Layout full-width com grid adaptativo */}
-      <main className="w-full min-h-[calc(100vh-80px)]">
+      <main className="w-full min-h-screen">
         <div className="grid grid-cols-12 gap-0 h-full">
           
           {/* Sidebar esquerda - Navegação minimalista */}
@@ -537,22 +649,62 @@ const VRChatAPIPage = () => {
                     <span className="font-medium">{activityLogs.length}</span>
                   </div>
                 </div>
+                
+                {/* Botão de refresh */}
+                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-800">
+                  <button
+                    onClick={handleRefresh}
+                    disabled={loadingStates[activeSection]}
+                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Atualizar dados"
+                  >
+                    <ArrowPathIcon className={`w-4 h-4 ${loadingStates[activeSection] ? 'animate-spin' : ''}`} />
+                    <span>Atualizar</span>
+                  </button>
+                </div>
               </div>
             </div>
           </aside>
 
           {/* Área central - Feed principal expandido */}
-          <main className="col-span-12 md:col-span-7 lg:col-span-7 bg-gray-50 dark:bg-gray-900 min-h-full">
+          <main className="col-span-12 md:col-span-7 lg:col-span-7 bg-gray-50 dark:bg-gray-900 min-h-full relative">
             <div className="p-6">
               <AnimatePresence mode="wait">
                 {renderActiveSection()}
+              </AnimatePresence>
+              
+              {/* Loading overlay para área principal */}
+              <AnimatePresence>
+                {loadingStates[activeSection] && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50"
+                  >
+                    <div className="flex flex-col items-center space-y-4">
+                      <VRChatLoading size="md" type="data" />
+                      <div className="text-center">
+                        <p className="text-gray-700 dark:text-gray-300 font-medium">
+                          {activeSection === 'dashboard' && 'Carregando dashboard...'}
+                          {activeSection === 'friends' && 'Carregando amigos...'}
+                          {activeSection === 'worlds' && 'Carregando mundos...'}
+                          {activeSection === 'activity' && 'Carregando atividades...'}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Aguarde um momento
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
           </main>
 
           {/* Sidebar direita - Amigos online compacta */}
           <aside className="col-span-12 md:col-span-3 lg:col-span-3 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800">
-            <div className="sticky top-20 h-[calc(100vh-80px)] flex flex-col">
+            <div className="sticky top-0 h-screen flex flex-col">
               
               {/* Header da sidebar */}
               <div className="p-4 border-b border-gray-200 dark:border-gray-800">
@@ -591,14 +743,16 @@ const VRChatAPIPage = () => {
               </div>              {/* Lista de amigos - scrollável */}
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-2">
-                  {loadingDashboard ? (
-                    <div className="flex items-center justify-center py-8">
+                  {loadingStates.friends ? (
+                    <div className="flex flex-col items-center justify-center py-12">
                       <VRChatLoading size="sm" type="user" showText={false} />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">Carregando amigos...</p>
                     </div>
                   ) : friends.length === 0 ? (
-                    <div className="text-center py-8">
-                      <UserGroupIcon className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500 dark:text-gray-400 text-sm">Nenhum amigo</p>
+                    <div className="text-center py-12">
+                      <UserGroupIcon className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">Nenhum amigo encontrado</p>
+                      <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Conecte sua conta VRChat</p>
                     </div>
                   ) : (
                     friends

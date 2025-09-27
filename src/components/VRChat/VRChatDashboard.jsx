@@ -112,28 +112,10 @@ const VRChatDashboard = ({
             Visão geral da sua atividade no VRChat
           </p>
         </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-        >
-          <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span className="text-sm font-medium">Atualizar</span>
-        </button>
       </div>
 
       {/* Perfil Card Minimalista */}
-      {loading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 flex items-center space-x-4">
-            <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse" />
-            <div className="flex-1">
-              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded animate-pulse mb-2" />
-              <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse w-2/3" />
-            </div>
-          </div>
-        </div>
-      ) : profile && Object.keys(profile).length > 0 ? (
+      {profile && Object.keys(profile).length > 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="p-6">
             <div className="flex items-center space-x-4">
@@ -304,11 +286,7 @@ const VRChatDashboard = ({
         </div>
 
         <div className="p-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <VRChatLoading size="lg" type="world" text="Carregando mundos..." />
-            </div>
-          ) : !recentWorlds || recentWorlds.length === 0 ? (
+          {!recentWorlds || recentWorlds.length === 0 ? (
             <div className="text-center py-12">
               <GlobeAltIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400 font-medium">Nenhum mundo recente</p>
