@@ -72,6 +72,9 @@ const VRChatAPIPage = () => {
   const [selectedFriend, setSelectedFriend] = useState(null)
   const [showFriendModal, setShowFriendModal] = useState(false)
   
+  // Estados para a sidebar de amigos
+  const [showAllFriends, setShowAllFriends] = useState(false)
+  
   // Estados para tracking de atividades
   const [friendsHistory, setFriendsHistory] = useState(new Map())
   const [friendsRefreshInterval, setFriendsRefreshInterval] = useState(null)
@@ -554,20 +557,38 @@ const VRChatAPIPage = () => {
               {/* Header da sidebar */}
               <div className="p-4 border-b border-gray-200 dark:border-gray-800">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-gray-900 dark:text-white">Online</h3>
+                  <h3 className="font-medium text-gray-900 dark:text-white">
+                    {showAllFriends ? 'Todos' : 'Online'}
+                  </h3>
                   {(() => {
                     const onlineFriends = friends.filter(f => f.status !== 'offline').length
-                    return onlineFriends > 0 && (
-                      <div className="flex items-center space-x-1.5">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-sm font-medium text-green-600 dark:text-green-400">{onlineFriends}</span>
+                    const totalFriends = friends.length
+                    return (
+                      <div className="flex items-center space-x-2">
+                        {!showAllFriends && onlineFriends > 0 && (
+                          <div className="flex items-center space-x-1.5">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <span className="text-sm font-medium text-green-600 dark:text-green-400">{onlineFriends}</span>
+                          </div>
+                        )}
+                        {showAllFriends && (
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {onlineFriends}/{totalFriends}
+                          </span>
+                        )}
+                        {totalFriends > onlineFriends && (
+                          <button
+                            onClick={() => setShowAllFriends(!showAllFriends)}
+                            className="text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-1 rounded-md transition-colors"
+                          >
+                            {showAllFriends ? 'Só Online' : 'Ver Todos'}
+                          </button>
+                        )}
                       </div>
                     )
-                  })()}
+                  })()} 
                 </div>
-              </div>
-              
-              {/* Lista de amigos - scrollável */}
+              </div>              {/* Lista de amigos - scrollável */}
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-2">
                   {loadingDashboard ? (
@@ -582,9 +603,28 @@ const VRChatAPIPage = () => {
                   ) : (
                     friends
                       .filter(friend => {
-                        const isOnline = friend.status && friend.status !== 'offline'
-                        console.log(`🔍 Friend ${friend.displayName}: status=${friend.status}, isOnline=${isOnline}`)
-                        return isOnline
+                        if (showAllFriends) {
+                          return true // Mostrar todos os amigos
+                        } else {
+                          const isOnline = friend.status && friend.status !== 'offline'
+                          return isOnline // Mostrar apenas online
+                        }
+                      })
+                      .sort((a, b) => {
+                        // Ordenar com online primeiro, depois offline
+                        const getStatusPriority = (status) => {
+                          const priorities = {
+                            'online': 1, 'active': 2, 'join me': 3,
+                            'ask me': 4, 'away': 5, 'busy': 6, 'offline': 7
+                          }
+                          return priorities[status] || 7
+                        }
+                        
+                        const priorityA = getStatusPriority(a.status || 'offline')
+                        const priorityB = getStatusPriority(b.status || 'offline')
+                        
+                        if (priorityA !== priorityB) return priorityA - priorityB
+                        return (a.displayName || '').localeCompare(b.displayName || '')
                       })
                       .map((friend) => (
                         <motion.div

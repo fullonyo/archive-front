@@ -60,6 +60,16 @@ const FriendsList = ({
     })
 
     if (friends?.length > 0) {
+      console.log('📋 Status distribution dos amigos:', {
+        total: friends.length,
+        statusBreakdown: friends.reduce((acc, friend) => {
+          const status = friend.status || 'unknown'
+          acc[status] = (acc[status] || 0) + 1
+          return acc
+        }, {}),
+        friendsList: friends.map(f => ({ name: f.displayName, status: f.status, location: f.location }))
+      })
+      
       console.log('📋 Sample friend details:', {
         displayName: friends[0].displayName,
         username: friends[0].username,
@@ -501,6 +511,12 @@ const FriendsList = ({
   })
   
   const filteredFriends = useMemo(() => {
+    console.log('🔍 Filtrando amigos:', { 
+      originalFriends: friends?.length || 0, 
+      statusFilter, 
+      searchTerm 
+    })
+    
     if (!friends || !Array.isArray(friends)) return []
     
     let filtered = friends.filter(friend => {
@@ -523,25 +539,46 @@ const FriendsList = ({
       return true
     })
     
-    // Ordenação
-    filtered.sort((a, b) => {
-      if (sortBy === 'status') {
-        const statusPriority = {
-          'online': 1, 'active': 1, 'join me': 2, 'ask me': 3, 'busy': 4, 'away': 5, 'offline': 6
-        }
-        const priorityA = statusPriority[a.status] || 6
-        const priorityB = statusPriority[b.status] || 6
-        
-        if (priorityA !== priorityB) return priorityA - priorityB
-        return (a.displayName || '').localeCompare(b.displayName || '')
-      }
-      
-      if (sortBy === 'name') {
-        return (a.displayName || '').localeCompare(b.displayName || '')
-      }
-      
-      return 0
+    console.log('✅ Amigos após filtro:', {
+      filteredCount: filtered.length,
+      statusBreakdown: filtered.reduce((acc, friend) => {
+        const status = friend.status || 'unknown'
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      }, {})
     })
+    
+    // Ordenação: sempre colocar online primeiro, depois offline
+    filtered.sort((a, b) => {
+      // Primeiro, ordenar por status (online primeiro)
+      const getStatusPriority = (status) => {
+        const priorities = {
+          'online': 1,
+          'active': 2,
+          'join me': 3,
+          'ask me': 4,
+          'away': 5,
+          'busy': 6,
+          'offline': 7
+        }
+        return priorities[status] || 7
+      }
+      
+      const priorityA = getStatusPriority(a.status || 'offline')
+      const priorityB = getStatusPriority(b.status || 'offline')
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB
+      }
+      
+      // Se mesmo status, ordenar por nome
+      return (a.displayName || '').localeCompare(b.displayName || '')
+    })
+    
+    console.log('📋 Amigos ordenados:', filtered.map(f => ({ 
+      name: f.displayName, 
+      status: f.status || 'undefined' 
+    })))
     
     return filtered
   }, [friends, searchTerm, statusFilter, sortBy])
